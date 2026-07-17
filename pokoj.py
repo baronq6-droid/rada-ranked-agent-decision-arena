@@ -300,7 +300,14 @@ def main():
 
     one_shot = " ".join(opts.message).strip()
     if one_shot:
-        handle_message(one_shot, agents, opts)
+        if one_shot.startswith(":debata"):
+            topic = one_shot[len(":debata"):].strip()
+            if topic:
+                debate(topic, agents, opts)
+            else:
+                print(rada.red("Podaj temat: :debata monorepo czy multirepo?"))
+        else:
+            handle_message(one_shot, agents, opts)
         return
 
     print(rada.bold("Pokój — czat grupowy modeli.") +

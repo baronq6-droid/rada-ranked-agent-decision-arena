@@ -12,6 +12,7 @@ import contextlib
 import io
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -242,6 +243,22 @@ class Test6_InterjectionErrors(unittest.TestCase):
         contents = [content for _frm, _to, _typ, content in messages]
         self.assertIn("offline niedostępny: timeout", contents)
         self.assertIn("bez uwag (PASS): passer", contents)
+
+
+class Test7_OneShotDebate(unittest.TestCase):
+    """Komenda :debata ma działać również poza trybem REPL."""
+
+    def test_main_kieruje_one_shot_do_debaty(self):
+        agents = {"claude": {}}
+        with mock.patch.object(sys, "argv", ["pokoj.py", "--mock", ":debata", "test"]), \
+                mock.patch.object(rada, "load_agents", return_value=agents), \
+                mock.patch.object(pokoj, "debate") as debate_mock, \
+                mock.patch.object(pokoj, "handle_message") as message_mock:
+            pokoj.main()
+
+        debate_mock.assert_called_once()
+        self.assertEqual(debate_mock.call_args.args[:2], ("test", agents))
+        message_mock.assert_not_called()
 
 
 if __name__ == "__main__":
