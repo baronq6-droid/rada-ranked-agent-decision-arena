@@ -133,7 +133,10 @@ def process(text: str):
             passes = []
             for n in others:
                 r = inter.get(n, {})
-                if r.get("ok") and not pokoj.is_pass(r["text"]):
+                if not r.get("ok"):
+                    pokoj.append_msg("system", "wszyscy", "system",
+                                     f"{n} niedostępny: {r.get('error')}")
+                elif not pokoj.is_pass(r["text"]):
                     pokoj.append_msg(n, target, "sprostowanie", r["text"].strip())
                 else:
                     passes.append(n)

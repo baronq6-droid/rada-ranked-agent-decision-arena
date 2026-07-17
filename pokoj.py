@@ -231,7 +231,10 @@ def handle_message(text: str, agents: dict, opts):
         quiet = True
         for n in others:
             r = inter.get(n, {})
-            if r.get("ok") and not is_pass(r["text"]):
+            if not r.get("ok"):
+                quiet = False
+                print(rada.dim(f"\n({n} niedostępny: {r.get('error')})"))
+            elif not is_pass(r["text"]):
                 quiet = False
                 speak(n, r["text"], typ="sprostowanie")
                 append_msg(n, target, "sprostowanie", r["text"].strip())

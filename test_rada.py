@@ -19,6 +19,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 import rada
+import pokoj
+import web
 
 
 def cichy(func, *args, **kwargs):
@@ -194,6 +196,52 @@ class Test5_ReviewerBorda(unittest.TestCase):
 
         self.assertEqual(saved[0]["winner"], "gamma")
         self.assertEqual(saved[0]["review"]["reviewer"], "beta")
+
+
+class Test6_InterjectionErrors(unittest.TestCase):
+    """Błąd agenta w rundzie sprostowań nie może uchodzić za PASS."""
+
+    def setUp(self):
+        self.agents = {n: {} for n in ("target", "offline", "passer")}
+        self.opts = SimpleNamespace(nick="szef", tail=1000, no_sprostowania=False,
+                                    mock=False, timeout=1)
+        self.answer = {"ok": True, "text": "odpowiedź", "error": None}
+        self.interjections = {
+            "offline": {"ok": False, "text": "", "error": "timeout"},
+            "passer": {"ok": True, "text": "PASS", "error": None},
+        }
+
+    def test_pokoj_raportuje_blad_zamiast_wszyscy_pass(self):
+        output = io.StringIO()
+        with mock.patch.object(pokoj, "append_msg"), \
+                mock.patch.object(pokoj, "transcript_tail", return_value=""), \
+                mock.patch.object(pokoj, "say", return_value=self.answer), \
+                mock.patch.object(pokoj, "say_parallel", return_value=self.interjections), \
+                mock.patch.object(pokoj, "speak"), \
+                contextlib.redirect_stdout(output):
+            pokoj.handle_message("@target pytanie", self.agents, self.opts)
+
+        self.assertIn("offline niedostępny: timeout", output.getvalue())
+        self.assertNotIn("wszyscy: PASS", output.getvalue())
+
+    def test_web_oddziela_blad_od_prawdziwego_pass(self):
+        messages = []
+
+        def append_msg(frm, to, typ, content):
+            messages.append((frm, to, typ, content))
+
+        with mock.patch.object(web, "AGENTS", self.agents), \
+                mock.patch.object(web, "OPTS", self.opts), \
+                mock.patch.object(pokoj, "append_msg", side_effect=append_msg), \
+                mock.patch.object(pokoj, "transcript_tail", return_value=""), \
+                mock.patch.object(pokoj, "say", return_value=self.answer), \
+                mock.patch.object(pokoj, "say_parallel", return_value=self.interjections), \
+                mock.patch.object(web, "set_status"):
+            web.process("@target pytanie")
+
+        contents = [content for _frm, _to, _typ, content in messages]
+        self.assertIn("offline niedostępny: timeout", contents)
+        self.assertIn("bez uwag (PASS): passer", contents)
 
 
 if __name__ == "__main__":
