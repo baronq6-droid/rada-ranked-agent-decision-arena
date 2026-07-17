@@ -52,6 +52,21 @@ i tryb `--mock`, żeby potwierdzić, że nic się nie zepsuło.
 > result: pełny słownik z run_agent). Zaktualizuj save_run/append_memory, jeśli
 > trzeba, i dopisz test odczytujący zapisany JSON.
 
+## Zlecenie 5 — przenośność Windows
+
+> W projekcie są problemy przenośności na Windows. Napraw trzy rzeczy:
+> 1. W test_rada.py klasa Test1_Returncode używa poleceń ["sh", "-c", ...], których
+> nie ma na Windows. Zastąp je przenośnym [sys.executable, "-c", "..."] (print +
+> sys.exit(kod)), tak by wszystkie testy przechodziły na Windows, Linuksie i macOS
+> bez zmiany tego, co weryfikują.
+> 2. rada.py, pokoj.py i web.py wypisują znaki Unicode (✓, ✗, 🗳, —, „"), które
+> wywracają konsolę Windows cp1250 (UnicodeEncodeError). Na starcie każdego z trzech
+> entry pointów dodaj w try/except:
+> sys.stdout.reconfigure(encoding="utf-8", errors="replace") i to samo dla
+> sys.stderr. Nie zmieniaj treści komunikatów.
+> 3. Dopisz w README krótką sekcję „Windows" (2–3 zdania: UTF-8, ewentualnie
+> `chcp 65001`). Na koniec: python3 -m unittest test_rada -v musi być w całości zielone.
+
 ---
 
 ## Po wszystkim
