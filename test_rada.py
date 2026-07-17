@@ -15,6 +15,8 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import rada
 
@@ -148,6 +150,50 @@ class Test4_JsonParser(unittest.TestCase):
 
     def test_brak_jsona(self):
         self.assertIsNone(rada.extract_json_block("brak tu żadnego obiektu"))
+
+
+class Test5_ReviewerBorda(unittest.TestCase):
+    """Recenzentem ma być wicemistrz głosowania, nie samooceny pewności."""
+
+    def test_recenzent_jest_wicemistrzem_glosowania(self):
+        agents = {n: {"opis": ""} for n in ("alpha", "beta", "gamma")}
+
+        def wynik(text):
+            return {"ok": True, "text": text, "stderr": "", "seconds": 0,
+                    "error": None, "returncode": 0}
+
+        bids = {
+            "alpha": wynik('{"confidence": 100, "approach": "A"}'),
+            "beta": wynik('{"confidence": 10, "approach": "B"}'),
+            "gamma": wynik('{"confidence": 20, "approach": "C"}'),
+        }
+        votes = {n: wynik('{"ranking": ["C", "B", "A"]}') for n in agents}
+
+        def run_parallel(_agents, phase, _prompts, _task, _timeout, _mock, _cwd):
+            return bids if phase == "bid" else votes
+
+        def run_agent(_name, _cfg, phase, _prompt, _task, _timeout, _mock, _cwd):
+            if phase == "review":
+                return wynik('{"ok": true, "uwagi": "dobrze"}')
+            return wynik("wykonane")
+
+        saved = []
+        opts = SimpleNamespace(mock=True, no_vote=False, review=True,
+                               timeout_bid=1, timeout_exec=1, cwd=".")
+        order = {"alpha": 0, "beta": 1, "gamma": 2}
+
+        with mock.patch.object(rada, "read_memory", return_value=""), \
+                mock.patch.object(rada, "stable_hash", side_effect=lambda text: next(
+                    value for name, value in order.items() if text.endswith(name))), \
+                mock.patch.object(rada, "run_parallel", side_effect=run_parallel), \
+                mock.patch.object(rada, "run_agent", side_effect=run_agent), \
+                mock.patch.object(rada, "save_run",
+                                  side_effect=lambda _run_id, record: saved.append(record)), \
+                mock.patch.object(rada, "append_memory"):
+            cichy(rada.council_run, "zadanie", agents, opts)
+
+        self.assertEqual(saved[0]["winner"], "gamma")
+        self.assertEqual(saved[0]["review"]["reviewer"], "beta")
 
 
 if __name__ == "__main__":

@@ -405,6 +405,7 @@ def council_run(task: str, agents: dict, opts) -> None:
         save_run(run_id, record)
         return
 
+    points_by_name = {}
     if len(bids) == 1:
         winner = next(iter(bids))
         tally_txt = "bez głosowania (jedna oferta)"
@@ -450,8 +451,9 @@ def council_run(task: str, agents: dict, opts) -> None:
             # remis → wyższa deklarowana pewność, potem alfabetycznie
             top.sort(key=lambda l: (-bids[by_letter[l]]["confidence"], l))
             winner = by_letter[top[0]]
-            tally_txt = ", ".join(f"{by_letter[l]} {p} pkt" for l, p in
-                                  sorted(points.items(), key=lambda kv: -kv[1]))
+            points_by_name = {by_letter[l]: p for l, p in points.items()}
+            tally_txt = ", ".join(f"{n} {p} pkt" for n, p in
+                                  sorted(points_by_name.items(), key=lambda kv: -kv[1]))
             print(f"\n  Wynik głosowania: {tally_txt}")
         else:
             winner = max(bids, key=lambda n: bids[n]["confidence"])
@@ -475,7 +477,11 @@ def council_run(task: str, agents: dict, opts) -> None:
     # ── RECENZJA (opcjonalna)
     if opts.review and exec_res["ok"] and len(bids) > 1:
         others = [n for n in bids if n != winner]
-        reviewer = max(others, key=lambda n: bids[n]["confidence"])
+        if points_by_name:
+            reviewer = max(others, key=lambda n: (points_by_name.get(n, 0),
+                                                  bids[n]["confidence"]))
+        else:
+            reviewer = max(others, key=lambda n: bids[n]["confidence"])
         print(bold(f"\n[recenzja] {reviewer}") + " sprawdza pracę zwycięzcy…")
         rev = run_agent(reviewer, agents[reviewer], "review",
                         REVIEW_PROMPT.format(task=task, result=exec_res["text"][:6000]),
