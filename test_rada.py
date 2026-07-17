@@ -261,5 +261,32 @@ class Test7_OneShotDebate(unittest.TestCase):
         message_mock.assert_not_called()
 
 
+class Test8_ManualRoutingRecord(unittest.TestCase):
+    """Routing ręczny ma zapisywać ten sam schemat rekordu co przetarg."""
+
+    def test_zapis_json_ma_routing_i_pelny_wynik(self):
+        opts = SimpleNamespace(mock=True, timeout_exec=1, cwd=".")
+        with tempfile.TemporaryDirectory() as tmp:
+            memory_dir = Path(tmp) / "rada_memory"
+            runs_dir = memory_dir / "runs"
+            journal = memory_dir / "journal.md"
+            with mock.patch.object(rada, "MEMORY_DIR", memory_dir), \
+                    mock.patch.object(rada, "RUNS_DIR", runs_dir), \
+                    mock.patch.object(rada, "JOURNAL", journal):
+                cichy(rada.council_run, "@codex zrób test", {"codex": {}}, opts)
+
+            files = list(runs_dir.glob("*.json"))
+            self.assertEqual(len(files), 1)
+            record = json.loads(files[0].read_text(encoding="utf-8"))
+
+        self.assertEqual(record["routing"], "reczny")
+        self.assertIsNone(record["votes"])
+        self.assertEqual(record["tally"], "routing ręczny")
+        self.assertIsInstance(record["result"], dict)
+        self.assertTrue(record["result"]["ok"])
+        self.assertIn("text", record["result"])
+        self.assertIn("error", record["result"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

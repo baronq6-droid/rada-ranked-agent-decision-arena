@@ -349,8 +349,8 @@ def council_run(task: str, agents: dict, opts) -> None:
     run_id = uuid.uuid4().hex[:10]
     memory = read_memory()
     record = {"run_id": run_id, "task": task, "started": datetime.now().isoformat(),
-              "mock": opts.mock, "bids": {}, "votes": {}, "winner": None,
-              "result": None, "review": None}
+              "mock": opts.mock, "routing": "przetarg", "bids": {}, "votes": {},
+              "tally": None, "winner": None, "result": None, "review": None}
 
     print(bold(f"\n━━ RADA MODELI ━━  ") + dim(f"(run {run_id}{', MOCK' if opts.mock else ''})"))
     print(f"Zadanie: {cyan(short(task, 200))}\n")
@@ -368,8 +368,8 @@ def council_run(task: str, agents: dict, opts) -> None:
                         subtask, opts.timeout_exec, opts.mock, opts.cwd)
         result_text = res["text"] if res["ok"] else red(f"błąd: {res['error']}")
         print("\n— wynik —\n" + result_text)
-        record.update({"winner": name, "result": res["text"] or res["error"],
-                       "votes": "pominięte (routing ręczny)"})
+        record.update({"routing": "reczny", "winner": name, "result": res,
+                       "votes": None, "tally": "routing ręczny"})
         save_run(run_id, record)
         append_memory(subtask, name, "routing ręczny", res["text"] or str(res["error"]), run_id)
         return
