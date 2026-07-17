@@ -19,7 +19,7 @@ kolejność, komendy i dramaturgia.
 Wpisuj w web UI jako `:rada …`, po jednym, czekaj na pełną kartę przebiegu:
 
 1. `:rada Napraw failujący test w tym repo` — teren Claude/Codex.
-2. `:rada Zrefaktoryzuj najdłuższą funkcję w projekcie na mniejsze, z zachowaniem zachowania` 
+2. `:rada Zrefaktoryzuj najdłuższą funkcję w projekcie na mniejsze, z zachowaniem zachowania`
 3. `:rada Napisz testy jednostkowe dla modułu X (pokryj przypadki brzegowe)`
 4. `:rada Przeczytaj całe repo i wypisz 5 największych długów technicznych` — teren Gemini (kontekst).
 5. `:rada Napisz regex walidujący polskie kody pocztowe i numery NIP + testy` — małe zadanie, szansa Groka.
