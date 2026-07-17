@@ -21,7 +21,7 @@ bez wyraźnej prośby użytkownika.
 - `web.py` — komunikator w przeglądarce (serwer HTTP ze stdlib); importuje `rada` i `pokoj`.
   Funkcja `process_rada` zawiera WZORCOWĄ logikę wyboru recenzenta wg Bordy (Zlecenie 1
   polega na przeniesieniu jej do `rada.py`).
-- `test_rada.py` — 17 testów regresyjnych po code review. Wszystkie muszą przechodzić.
+- `test_rada.py` — 22 testy regresyjne po code review. Wszystkie muszą przechodzić.
 
 ## Twarde zasady (antydrift)
 
