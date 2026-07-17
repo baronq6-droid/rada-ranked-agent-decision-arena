@@ -34,19 +34,20 @@ class Test1_Returncode(unittest.TestCase):
     """#1 (Krytyczny): proces z niezerowym kodem wyjścia nie może uchodzić za udany."""
 
     def test_niezerowy_kod_z_tekstem_to_blad(self):
-        cfg = {"bid_cmd": ["sh", "-c", "echo 'BŁĄD wykonania'; exit 7"]}
+        cfg = {"bid_cmd": [sys.executable, "-c",
+                           "import sys; print('BŁĄD wykonania'); sys.exit(7)"]}
         r = rada.run_agent("t", cfg, "bid", "x", "x", timeout=10, mock=False, cwd=".")
         self.assertFalse(r["ok"], "proces exit 7 nie może być ok=True")
         self.assertEqual(r["returncode"], 7)
 
     def test_kod_zero_z_tekstem_jest_ok(self):
-        cfg = {"bid_cmd": ["sh", "-c", "echo DZIALA"]}
+        cfg = {"bid_cmd": [sys.executable, "-c", "print('DZIALA')"]}
         r = rada.run_agent("t", cfg, "bid", "x", "x", timeout=10, mock=False, cwd=".")
         self.assertTrue(r["ok"])
         self.assertIn("DZIALA", r["text"])
 
     def test_kod_zero_ale_pusto_to_blad(self):
-        cfg = {"bid_cmd": ["sh", "-c", "exit 0"]}
+        cfg = {"bid_cmd": [sys.executable, "-c", "pass"]}
         r = rada.run_agent("t", cfg, "bid", "x", "x", timeout=10, mock=False, cwd=".")
         self.assertFalse(r["ok"])
 

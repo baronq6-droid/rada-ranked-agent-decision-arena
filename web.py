@@ -35,6 +35,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rada   # noqa: E402
 import pokoj  # noqa: E402
 
+
+def _configure_utf8_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 OPTS = None
 AGENTS = {}
 STATE = {"busy": False, "status": ""}
@@ -584,6 +593,7 @@ poll();
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
+    _configure_utf8_stdio()
     global OPTS, AGENTS
     ap = argparse.ArgumentParser(description="Pokój w przeglądarce — komunikator Twoich agentów AI.")
     ap.add_argument("--port", type=int, default=8787)

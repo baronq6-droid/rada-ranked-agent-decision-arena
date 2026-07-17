@@ -32,6 +32,15 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+
+def _configure_utf8_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # KONFIGURACJA AGENTÓW
 # W poleceniach "{prompt}" zostaje podmienione na treść zapytania.
@@ -526,6 +535,7 @@ def load_agents(path: str, only: str) -> dict:
     return agents
 
 def main():
+    _configure_utf8_stdio()
     ap = argparse.ArgumentParser(
         description="Rada Modeli — Twoje agenty AI wspólnie wybierają, kto wykona zadanie.")
     ap.add_argument("task", nargs="*", help="treść zadania (puste = tryb rozmowy)")

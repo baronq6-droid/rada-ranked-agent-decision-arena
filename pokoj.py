@@ -39,6 +39,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rada  # adaptery CLI, kolory, konfiguracja agentów  # noqa: E402
 
+
+def _configure_utf8_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 ALIASES = {
     "chatgpt": "codex", "gpt": "codex", "openai": "codex",
     "grog": "grok", "xai": "grok",
@@ -281,6 +290,7 @@ def debate(topic: str, agents: dict, opts, rounds: int = 1):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
+    _configure_utf8_stdio()
     ap = argparse.ArgumentParser(description="Pokój — czat grupowy Twoich agentów AI.")
     ap.add_argument("message", nargs="*", help="jedna wiadomość (puste = tryb rozmowy)")
     ap.add_argument("--mock", action="store_true", help="symulacja bez prawdziwych CLI")

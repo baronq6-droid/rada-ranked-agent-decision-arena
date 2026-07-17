@@ -40,6 +40,12 @@ deklarowana pewność.
 
 Brakujące CLI nie psują zabawy — hub je wykrywa i po prostu pomija ("brak polecenia w PATH").
 
+### Windows
+
+Program przełącza standardowe wyjście i strumień błędów na UTF-8, aby znaki interfejsu
+działały również w konsoli Windows. W starszym terminalu można dodatkowo wykonać
+`chcp 65001` przed uruchomieniem programu.
+
 ## Szybki start
 
 ```bash
@@ -151,7 +157,7 @@ python3 web.py               # na żywych agentach (otwiera http://localhost:878
 ## Testy
 
 ```bash
-python3 -m unittest test_rada -v      # 17 testów regresyjnych
+python3 -m unittest test_rada -v      # 22 testy regresyjne
 ```
 
 `test_rada.py` pilnuje czterech błędów wykrytych w code review v0 (każdy test najpierw
