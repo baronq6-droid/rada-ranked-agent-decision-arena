@@ -1,0 +1,66 @@
+{
+  "_uwaga": "Przykład rozszerzonego składu Rady + twardy routing (sekcja _rules). Skopiuj do agents.json i dostosuj. Lokalne modele wymagają zainstalowanego Ollama (ollama.com).",
+
+  "_rules": [
+    { "gdy": ["przeczytaj", "całe repo", "cała książka", "ogromny", "podsumuj plik", "wideo"],
+      "wykonawca": "gemini", "powod": "gigantyczne okno kontekstu — połyka duże wejścia naraz" },
+    { "gdy": ["research", "poszukaj w sieci", "najnowsze", "źródła", "sprawdź fakty"],
+      "wykonawca": "perplexity", "powod": "wyszukiwarka z cytowaniem źródeł" },
+    { "gdy": ["prywatne", "offline", "bez wysyłania", "poufne", "lokalnie"],
+      "wykonawca": "llama_local", "powod": "dane nie opuszczają maszyny" },
+    { "gdy": ["algorytm", "matematyka", "dowód", "złożoność", "reasoning"],
+      "wykonawca": "deepseek_local", "powod": "mocne rozumowanie krok po kroku, tanio" },
+    { "gdy": ["zrefaktoryzuj", "napraw testy", "debuguj", "regresja", "commit"],
+      "wykonawca": "claude", "powod": "agent terminala z pełnym dostępem do repo" }
+  ],
+
+  "claude": {
+    "opis": "Claude Code (Anthropic) — agent terminala",
+    "enabled": true,
+    "bid_cmd": ["claude", "-p", "{prompt}", "--output-format", "json"],
+    "exec_cmd": ["claude", "-p", "{prompt}", "--output-format", "json", "--permission-mode", "acceptEdits"]
+  },
+  "codex": {
+    "opis": "Codex CLI (OpenAI / ChatGPT) — czysty, stabilny kod",
+    "enabled": true,
+    "bid_cmd": ["codex", "exec", "--skip-git-repo-check", "{prompt}"],
+    "exec_cmd": ["codex", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "{prompt}"]
+  },
+  "gemini": {
+    "opis": "Gemini CLI (Google) — ogromny kontekst, multimodal",
+    "enabled": true,
+    "bid_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json"],
+    "exec_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json", "--yolo"]
+  },
+  "grok": {
+    "opis": "Grok Build (xAI) — szybki, bezpośredni",
+    "enabled": true,
+    "bid_cmd": ["grok", "-p", "{prompt}", "--output-format", "json"],
+    "exec_cmd": ["grok", "-p", "{prompt}", "--output-format", "json", "--always-approve"]
+  },
+
+  "cursor": {
+    "opis": "Cursor Agent (headless) — mocne indeksowanie repo",
+    "enabled": false,
+    "bid_cmd": ["cursor-agent", "-p", "{prompt}", "--output-format", "text"],
+    "exec_cmd": ["cursor-agent", "-p", "{prompt}", "--output-format", "text", "--force"]
+  },
+  "deepseek_local": {
+    "opis": "DeepSeek Coder przez Ollama — lokalny, tani pretendent (reasoning/kod)",
+    "enabled": false,
+    "bid_cmd": ["ollama", "run", "deepseek-coder", "{prompt}"],
+    "exec_cmd": ["ollama", "run", "deepseek-coder", "{prompt}"]
+  },
+  "llama_local": {
+    "opis": "Llama przez Ollama — lokalny, prywatny (dane nie wychodzą)",
+    "enabled": false,
+    "bid_cmd": ["ollama", "run", "llama3.1", "{prompt}"],
+    "exec_cmd": ["ollama", "run", "llama3.1", "{prompt}"]
+  },
+  "mistral_local": {
+    "opis": "Mistral przez Ollama — lekki, szybki, wielojęzyczny",
+    "enabled": false,
+    "bid_cmd": ["ollama", "run", "mistral", "{prompt}"],
+    "exec_cmd": ["ollama", "run", "mistral", "{prompt}"]
+  }
+}

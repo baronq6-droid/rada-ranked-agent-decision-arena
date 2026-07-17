@@ -1,0 +1,78 @@
+{
+  "claude": {
+    "opis": "Claude Code (Anthropic)",
+    "enabled": true,
+    "bid_cmd": [
+      "claude",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json"
+    ],
+    "exec_cmd": [
+      "claude",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json",
+      "--permission-mode",
+      "acceptEdits"
+    ]
+  },
+  "codex": {
+    "opis": "Codex CLI (OpenAI)",
+    "enabled": true,
+    "bid_cmd": [
+      "codex",
+      "exec",
+      "--skip-git-repo-check",
+      "{prompt}"
+    ],
+    "exec_cmd": [
+      "codex",
+      "exec",
+      "--skip-git-repo-check",
+      "--sandbox",
+      "workspace-write",
+      "{prompt}"
+    ]
+  },
+  "gemini": {
+    "opis": "Gemini CLI (Google)",
+    "enabled": true,
+    "bid_cmd": [
+      "gemini",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json"
+    ],
+    "exec_cmd": [
+      "gemini",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json",
+      "--yolo"
+    ]
+  },
+  "grok": {
+    "opis": "Grok Build (xAI)",
+    "enabled": true,
+    "bid_cmd": [
+      "grok",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json"
+    ],
+    "exec_cmd": [
+      "grok",
+      "-p",
+      "{prompt}",
+      "--output-format",
+      "json",
+      "--always-approve"
+    ]
+  }
+}
