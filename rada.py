@@ -78,6 +78,19 @@ DEFAULT_AGENTS = {
     },
 }
 
+VERIFIER_OUTPUT_LIMIT = 4000
+VERIFIER_FINAL_STATUS = {
+    "PASS": "success",
+    "FAIL": "failed",
+    "INCONCLUSIVE": "unverified",
+}
+PROJECT_CONFIG_KEYS = {"verify_cmd", "verify_timeout"}
+SAFE_VERIFIER_ENV_KEYS = {
+    "COMSPEC", "HOME", "HOMEDRIVE", "HOMEPATH", "LANG", "LC_ALL", "LC_CTYPE",
+    "PATH", "PATHEXT", "PYTHONIOENCODING", "PYTHONUTF8", "SYSTEMROOT", "TEMP",
+    "TMP", "TMPDIR", "USERPROFILE", "VIRTUAL_ENV", "WINDIR",
+}
+
 MEMORY_DIR = Path("rada_memory")
 JOURNAL = MEMORY_DIR / "journal.md"
 RUNS_DIR = MEMORY_DIR / "runs"
@@ -327,6 +340,84 @@ def run_parallel(agents: dict, phase: str, prompts: dict, task: str,
                 }
     return results
 
+
+def _clip_verifier_output(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return str(value)[-VERIFIER_OUTPUT_LIMIT:]
+
+
+def _verifier_result(status: str, reason: str, started: float,
+                     stdout="", stderr="", returncode=None) -> dict:
+    return {
+        "status": status,
+        "reason": reason,
+        "stdout": _clip_verifier_output(stdout),
+        "stderr": _clip_verifier_output(stderr),
+        "seconds": round(time.time() - started, 2),
+        "returncode": returncode,
+    }
+
+
+def run_verifier(command, timeout, cwd: str) -> dict:
+    """Uruchom lokalny, deterministyczny verifier bez shella i zapisu środowiska."""
+    started = time.time()
+    if command is None:
+        return _verifier_result(
+            "INCONCLUSIVE", "no verifier configured", started, returncode=None)
+    if (not isinstance(command, list) or not command
+            or not all(isinstance(part, str) for part in command)):
+        return _verifier_result(
+            "INCONCLUSIVE", "invalid verifier configuration: verify_cmd must be a non-empty list of strings",
+            started, returncode=None)
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+        return _verifier_result(
+            "INCONCLUSIVE", "invalid verifier configuration: verify_timeout must be positive",
+            started, returncode=None)
+
+    try:
+        safe_env = {
+            key: value for key, value in os.environ.items()
+            if key.upper() in SAFE_VERIFIER_ENV_KEYS
+        }
+        proc = subprocess.run(
+            list(command), capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout, cwd=cwd, shell=False, env=safe_env)
+    except subprocess.TimeoutExpired as e:
+        return _verifier_result(
+            "INCONCLUSIVE", f"verifier timed out after {timeout}s", started,
+            stdout=e.stdout, stderr=e.stderr, returncode=None)
+    except OSError as e:
+        return _verifier_result(
+            "INCONCLUSIVE", f"verifier could not start: {type(e).__name__}: {e}", started,
+            stderr=str(e), returncode=None)
+
+    status = "PASS" if proc.returncode == 0 else "FAIL"
+    return _verifier_result(
+        status, f"exit code {proc.returncode}", started,
+        stdout=proc.stdout, stderr=proc.stderr, returncode=proc.returncode)
+
+
+def attach_verifier(record: dict, opts, execution_attempted: bool = True) -> dict:
+    command = getattr(opts, "verify_cmd", None)
+    timeout = getattr(opts, "verify_timeout", 300)
+    if not execution_attempted and command is not None:
+        result = _verifier_result(
+            "INCONCLUSIVE", "execution did not run", time.time(), returncode=None)
+    else:
+        result = run_verifier(command, timeout, getattr(opts, "cwd", "."))
+    record["verifier"] = result
+    record["final_status"] = VERIFIER_FINAL_STATUS[result["status"]]
+    return result
+
+
+def print_verifier_result(result: dict) -> None:
+    colors = {"PASS": green, "FAIL": red, "INCONCLUSIVE": yellow}
+    status = result["status"]
+    print(bold("\n[verifier] ") + colors[status](status) + dim(f" — {result['reason']}"))
+
 # ──────────────────────────────────────────────────────────────────────────────
 # PAMIĘĆ WSPÓLNA
 # ──────────────────────────────────────────────────────────────────────────────
@@ -382,7 +473,8 @@ def council_run(task: str, agents: dict, opts) -> None:
     memory = read_memory()
     record = {"run_id": run_id, "task": task, "started": datetime.now().isoformat(),
               "mock": opts.mock, "routing": "przetarg", "bids": {}, "votes": {},
-              "tally": None, "winner": None, "result": None, "review": None}
+              "tally": None, "winner": None, "result": None,
+              "verifier": None, "review": None, "final_status": "unverified"}
 
     print(bold(f"\n━━ RADA MODELI ━━  ") + dim(f"(run {run_id}{', MOCK' if opts.mock else ''})"))
     print(f"Zadanie: {cyan(short(task, 200))}\n")
@@ -402,6 +494,7 @@ def council_run(task: str, agents: dict, opts) -> None:
         print("\n— wynik —\n" + result_text)
         record.update({"routing": "reczny", "winner": name, "result": res,
                        "votes": None, "tally": "routing ręczny"})
+        print_verifier_result(attach_verifier(record, opts))
         save_run(run_id, record)
         append_memory(subtask, name, "routing ręczny", res["text"] or str(res["error"]), run_id)
         return
@@ -434,6 +527,7 @@ def council_run(task: str, agents: dict, opts) -> None:
     if not bids:
         print(red("\nŻaden agent nie złożył oferty — sprawdź, czy CLI są zainstalowane i zalogowane,"
                   " albo przetestuj przepływ z flagą --mock."))
+        print_verifier_result(attach_verifier(record, opts, execution_attempted=False))
         save_run(run_id, record)
         return
 
@@ -506,6 +600,9 @@ def council_run(task: str, agents: dict, opts) -> None:
     else:
         print(red(f"\nWykonawca zawiódł: {exec_res['error']}"))
 
+    # ── WERYFIKACJA DETERMINISTYCZNA — jedyne źródło final_status
+    print_verifier_result(attach_verifier(record, opts))
+
     # ── RECENZJA (opcjonalna)
     if opts.review and exec_res["ok"] and len(bids) > 1:
         others = [n for n in bids if n != winner]
@@ -543,7 +640,7 @@ def load_agents(path: str, only: str) -> dict:
         try:
             user_cfg = json.loads(p.read_text(encoding="utf-8"))
             for name, cfg in user_cfg.items():
-                if name.startswith("_"):
+                if name.startswith("_") or name in PROJECT_CONFIG_KEYS:
                     continue  # sekcje metadanych (_rules, _uwaga…) — to nie agenci
                 if not isinstance(cfg, dict):
                     print(red(f"Pomijam „{name}” w {path}: definicja agenta musi być obiektem."))
@@ -571,6 +668,28 @@ def load_agents(path: str, only: str) -> dict:
         valid_agents[name] = cfg
     return valid_agents
 
+
+def load_verifier_settings(path: str):
+    """Wczytaj ustawienia projektu bez dołączania ich do definicji agentów."""
+    p = Path(path)
+    if not p.exists():
+        return None, 300
+    try:
+        config = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None, 300
+    if not isinstance(config, dict):
+        return None, 300
+    return config.get("verify_cmd"), config.get("verify_timeout", 300)
+
+
+def configure_verifier_options(opts, path: str) -> None:
+    config_cmd, config_timeout = load_verifier_settings(path)
+    if getattr(opts, "verify_cmd", None) is None:
+        opts.verify_cmd = config_cmd
+    if getattr(opts, "verify_timeout", None) is None:
+        opts.verify_timeout = config_timeout
+
 def main():
     _configure_utf8_stdio()
     ap = argparse.ArgumentParser(
@@ -585,6 +704,10 @@ def main():
     ap.add_argument("--timeout-exec", type=int, default=3600, help="limit [s] na wykonanie")
     ap.add_argument("--cwd", default=".", help="katalog roboczy dla agentów (projekt)")
     ap.add_argument("--init", action="store_true", help="zapisz agents.json i zakończ")
+    ap.add_argument("--verify-timeout", type=int, default=None,
+                    help="limit [s] dla deterministycznego verifiera")
+    ap.add_argument("--verify-cmd", nargs=argparse.REMAINDER, default=None,
+                    help="argv verifiera; ta flaga musi być ostatnia")
     opts = ap.parse_args()
 
     if opts.init:
@@ -594,6 +717,7 @@ def main():
         return
 
     agents = load_agents(opts.agents, opts.only)
+    configure_verifier_options(opts, opts.agents)
     if not agents:
         print(red("Brak włączonych agentów — sprawdź agents.json lub flagę --only."))
         sys.exit(1)

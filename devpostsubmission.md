@@ -26,8 +26,10 @@ four agents from four competing vendors — in one decision arena:
 3. **Execution.** Only the vote winner executes, in your repo. One execution instead
    of four — this is what makes the arena cheap compared to "run everything and
    compare" orchestrators.
-4. **Review.** The vote runner-up reviews the winner's work.
-5. **Audit trail.** Every bid, vote, mapping, result and review lands in
+4. **Deterministic verification.** A project-defined argv command produces
+   PASS, FAIL or INCONCLUSIVE; only this result determines the run's final status.
+5. **Review.** The vote runner-up independently reviews the winner's work.
+6. **Audit trail.** Every bid, vote, mapping, result, verifier result and review lands in
    `rada_memory/runs/*.json`; `ranking.py` turns history into a scoreboard —
    wins, review verdicts, and how often each juror's vote picked the final winner.
 
@@ -49,7 +51,7 @@ that sometimes says "a competitor is better for this one," so it had to be indep
 The project was built during Build Week in a tight loop between Codex (GPT‑5.6) and
 other assistants, with Codex doing the hands-on engineering on the final repo:
 
-- Codex executed **five written work orders** end-to-end, one commit each:
+- Codex executed the initial **five written work orders** end-to-end, one commit each:
   - `2e05439` — reviewer selection by Borda runner-up (not self-declared confidence)
   - `fd12a54` — agent failure is reported as an error, never counted as a silent PASS
   - `66a1c7a` — one-shot `:debata` command routed correctly outside the REPL
@@ -57,6 +59,9 @@ other assistants, with Codex doing the hands-on engineering on the final repo:
   - `f2f91f7` — Windows portability: portable tests (`sys.executable`), UTF‑8 stdio
 - Codex also wrote the accompanying regression tests — the suite grew from 17 to
   **22 tests**, all green natively on Windows, Linux and macOS.
+- A final hardening pass added the public-name sweep (`6c8b6dd`), isolated malformed
+  agent configs and worker failures (`316d0ac`), and added the deterministic verifier.
+  The suite now has **36 tests** and is green natively on Windows.
 - Codex ran the verification loop itself (unit tests, mock RADA runs, web smoke).
 - **Codex Session ID (`/feedback`):** `[WKLEJ SESSION ID]`
 
@@ -107,7 +112,7 @@ python3 web.py --mock          # open http://localhost:8787 and type:  :rada add
 # terminal flow with review:
 python3 rada.py --mock --review "refactor the payments module"
 
-# regression suite (22 tests):
+# regression suite (36 tests):
 python3 -m unittest test_rada -v
 
 # with real agents: install & log in claude / codex / gemini / grok CLIs, then drop --mock

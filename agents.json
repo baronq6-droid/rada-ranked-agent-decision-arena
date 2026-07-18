@@ -1,4 +1,12 @@
 {
+  "verify_cmd": [
+    "python",
+    "-m",
+    "unittest",
+    "test_rada",
+    "-v"
+  ],
+  "verify_timeout": 120,
   "claude": {
     "opis": "Claude Code (Anthropic)",
     "enabled": true,

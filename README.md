@@ -68,6 +68,8 @@ python3 rada.py [task] [flags]
   --cwd /path            working directory for agents (your project)
   --timeout-bid 300      seconds per bid/vote
   --timeout-exec 3600    seconds for execution
+  --verify-timeout 300   seconds for deterministic verification
+  --verify-cmd ARGV...   override verifier argv (this flag must be last)
   --init                 write agents.json for editing
 ```
 
@@ -89,6 +91,20 @@ that reads a prompt and prints a reply — e.g. local models via
 `["ollama", "run", "llama3.1", "{prompt}"]`. `bid_cmd` is used for cheap
 bids/votes (no write permissions); `exec_cmd` carries the auto-approve flags.
 
+Project-level `verify_cmd` and `verify_timeout` run a deterministic check after
+execution. Commands stay as argument arrays and never use a shell:
+
+```json
+"verify_cmd": ["python", "-m", "unittest", "test_rada", "-v"],
+"verify_timeout": 120
+```
+
+Exit code 0 is `PASS`; a non-zero code is `FAIL`; missing configuration, timeout,
+or inability to start is `INCONCLUSIVE`. The audit stores `verifier` beside the
+independent model `review`; only the verifier determines `final_status`
+(`success`, `failed`, or `unverified`). Stdout/stderr are capped at 4000 characters,
+and secret environment variables are not passed to the verifier or written to runs.
+
 ## Safety & cost
 
 The council overhead is ~2 short calls per agent (bid + vote); only the winner
@@ -104,12 +120,13 @@ python3 ranking.py        # wins, review verdicts, juror accuracy per agent
 ## Tests
 
 ```bash
-python3 -m unittest test_rada -v     # 22 regression tests
+python3 -m unittest test_rada -v     # 36 regression tests
 ```
 
 Covers: exit-code handling, config validation, Borda dedup, brace-safe JSON
 parsing, Borda-based reviewer selection, error-vs-PASS separation, one-shot
-`:debata`, unified audit schema, Windows portability.
+`:debata`, unified audit schema, agent-failure isolation, deterministic verification,
+secret-safe subprocess execution, Windows portability.
 
 ## Windows
 

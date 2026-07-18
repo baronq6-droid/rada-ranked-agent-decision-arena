@@ -77,6 +77,8 @@ python3 rada.py [zadanie] [flagi]
   --cwd /sciezka         katalog roboczy dla agentów (Twój projekt)
   --timeout-bid 300      limit [s] na ofertę/głos
   --timeout-exec 3600    limit [s] na wykonanie zadania
+  --verify-timeout 300   limit [s] na deterministyczną weryfikację
+  --verify-cmd ARGV...   nadpisz polecenie verifiera (ta flaga musi być ostatnia)
   --init                 wygeneruj agents.json do edycji
 ```
 
@@ -94,6 +96,20 @@ W trybie rozmowy działają komendy `:agenci`, `:pamiec` oraz `exit`.
 `bid_cmd` służy do ofert/głosów (tanio, bez zmian w plikach), `exec_cmd` do właściwego
 wykonania — dlatego tylko tam są flagi auto-zatwierdzania (`--yolo`, `--always-approve`,
 `--sandbox workspace-write`, `--permission-mode acceptEdits`).
+
+Pola projektowe `verify_cmd` i `verify_timeout` uruchamiają po wykonaniu
+deterministyczną kontrolę bez shella:
+
+```json
+"verify_cmd": ["python", "-m", "unittest", "test_rada", "-v"],
+"verify_timeout": 120
+```
+
+Kod 0 oznacza `PASS`, kod niezerowy `FAIL`, a brak konfiguracji, timeout lub błąd
+startu — `INCONCLUSIVE`. W zapisie `verifier` i modelowy `review` są osobnymi polami;
+wyłącznie verifier wyznacza `final_status` (`success`, `failed`, `unverified`).
+Stdout/stderr są przycinane do 4000 znaków, a sekrety ze środowiska nie są przekazywane
+do procesu ani zapisywane w przebiegu.
 
 ## Koszty i bezpieczeństwo
 
@@ -161,7 +177,7 @@ python3 web.py               # na żywych agentach (otwiera http://localhost:878
 ## Testy
 
 ```bash
-python3 -m unittest test_rada -v      # 22 testy regresyjne
+python3 -m unittest test_rada -v      # 36 testów regresyjnych
 ```
 
 `test_rada.py` pilnuje czterech błędów wykrytych w code review v0 (każdy test najpierw
@@ -171,6 +187,10 @@ reprodukuje buga, potem potwierdza naprawę):
   jeśli coś wypisał na stdout;
 - **ładowanie configu** — sekcje metadanych (`_rules`, `_uwaga`) i błędne wpisy są
   pomijane zamiast wywracać program `TypeError`-em;
+- **izolacja awarii** — wadliwa komenda lub pojedynczy worker nie kasuje wyników
+  zdrowych agentów;
+- **verifier** — PASS/FAIL/INCONCLUSIVE, timeouty, limity wyjścia i brak sekretów
+  są sprawdzane prawdziwymi procesami przenośnymi między systemami;
 - **głosowanie Bordy** — duplikaty w rankingu jurora (`A > A > A > A`) nie kumulują
   już punktów;
 - **parser JSON** — klamry `{` `}` wewnątrz wartości stringowych nie psują wykrywania

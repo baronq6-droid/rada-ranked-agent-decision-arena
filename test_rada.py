@@ -365,5 +365,104 @@ class Test9_AgentFailureIsolation(unittest.TestCase):
         self.assertIsNone(wynik["returncode"])
 
 
+class Test10_DeterministicVerifier(unittest.TestCase):
+    """Verifier ma rozstrzygać wynik bez modelu, shella i wycieku sekretów."""
+
+    RESULT_KEYS = {"status", "reason", "stdout", "stderr", "seconds", "returncode"}
+
+    def _zapisz(self, obj):
+        fd, sciezka = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        Path(sciezka).write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
+        self.addCleanup(os.unlink, sciezka)
+        return sciezka
+
+    def test_brak_konfiguracji_to_inconclusive(self):
+        wynik = rada.run_verifier(None, 10, ".")
+
+        self.assertEqual(set(wynik), self.RESULT_KEYS)
+        self.assertEqual(wynik["status"], "INCONCLUSIVE")
+        self.assertEqual(wynik["reason"], "no verifier configured")
+        self.assertIsNone(wynik["returncode"])
+
+    def test_exit_zero_to_pass(self):
+        wynik = rada.run_verifier(
+            [sys.executable, "-c", "print('verified')"], 10, ".")
+
+        self.assertEqual(wynik["status"], "PASS")
+        self.assertEqual(wynik["returncode"], 0)
+        self.assertIn("verified", wynik["stdout"])
+
+    def test_exit_niezerowy_to_fail(self):
+        wynik = rada.run_verifier(
+            [sys.executable, "-c", "import sys; print('fail', file=sys.stderr); sys.exit(9)"],
+            10, ".")
+
+        self.assertEqual(wynik["status"], "FAIL")
+        self.assertEqual(wynik["returncode"], 9)
+        self.assertIn("fail", wynik["stderr"])
+
+    def test_timeout_to_inconclusive(self):
+        wynik = rada.run_verifier(
+            [sys.executable, "-c", "import time; time.sleep(2)"], 0.05, ".")
+
+        self.assertEqual(wynik["status"], "INCONCLUSIVE")
+        self.assertIsNone(wynik["returncode"])
+
+    def test_wyjscie_jest_przyciete_a_sekret_env_niedostepny(self):
+        sekret = "sekret-rada-ktory-nie-moze-trafic-do-rekordu"
+        kod = (
+            "import os,sys; "
+            "sys.stdout.write('x'*5000 + os.environ.get('OPENAI_API_KEY', '')); "
+            "sys.stderr.write('y'*5000)"
+        )
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": sekret}):
+            wynik = rada.run_verifier([sys.executable, "-c", kod], 10, ".")
+
+        self.assertEqual(wynik["status"], "PASS")
+        self.assertLessEqual(len(wynik["stdout"]), rada.VERIFIER_OUTPUT_LIMIT)
+        self.assertLessEqual(len(wynik["stderr"]), rada.VERIFIER_OUTPUT_LIMIT)
+        self.assertNotIn(sekret, json.dumps(wynik, ensure_ascii=False))
+        self.assertNotIn("env", wynik)
+
+    def test_subprocess_dostaje_argv_i_shell_false(self):
+        completed = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        with mock.patch.object(rada.subprocess, "run", return_value=completed) as run_mock:
+            rada.run_verifier(["verifier", "--check"], 10, ".")
+
+        args, kwargs = run_mock.call_args
+        self.assertEqual(args[0], ["verifier", "--check"])
+        self.assertIs(kwargs["shell"], False)
+        self.assertIsInstance(kwargs["env"], dict)
+
+    def test_ustawienia_projektu_nie_staja_sie_agentami(self):
+        sciezka = self._zapisz({
+            "verify_cmd": [sys.executable, "-c", "print('ok')"],
+            "verify_timeout": 17,
+        })
+
+        command, timeout = rada.load_verifier_settings(sciezka)
+        agents = cichy(rada.load_agents, sciezka, "")
+
+        self.assertEqual(command[0], sys.executable)
+        self.assertEqual(timeout, 17)
+        self.assertNotIn("verify_cmd", agents)
+        self.assertNotIn("verify_timeout", agents)
+
+    def test_recenzja_modelowa_nie_nadpisuje_final_status(self):
+        record = {"review": {"parsed": {"ok": False, "uwagi": "nie zgadzam się"}}}
+        opts = SimpleNamespace(
+            verify_cmd=[sys.executable, "-c", "print('ok')"],
+            verify_timeout=10,
+            cwd=".",
+        )
+
+        rada.attach_verifier(record, opts)
+
+        self.assertEqual(record["verifier"]["status"], "PASS")
+        self.assertEqual(record["final_status"], "success")
+        self.assertFalse(record["review"]["parsed"]["ok"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

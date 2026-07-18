@@ -184,7 +184,8 @@ def process_rada(task: str):
     pokoj.append_msg(opts.nick, "rada", "wiadomosc", task)
     record = {"run_id": run_id, "task": task, "started": datetime.now().isoformat(),
               "mock": opts.mock, "source": "web", "bids": {}, "votes": {},
-              "mapping": {}, "tally": None, "winner": None, "result": None, "review": None}
+              "mapping": {}, "tally": None, "winner": None, "result": None,
+              "verifier": None, "review": None, "final_status": "unverified"}
 
     # ── [1] PRZETARG: oferty od wszystkich
     set_status("rada: zbieram oferty…")
@@ -213,6 +214,7 @@ def process_rada(task: str):
     if not bids:
         pokoj.append_msg("system", opts.nick, "system",
                          "Rada nie zebrała żadnej ważnej oferty — sprawdź CLI albo użyj --mock.")
+        rada.attach_verifier(record, opts, execution_attempted=False)
         rada.save_run(run_id, record)
         return
 
@@ -279,6 +281,10 @@ def process_rada(task: str):
     else:
         pokoj.append_msg("system", "rada", "system",
                          f"Wykonawca {winner} zawiódł: {er.get('error')}")
+
+    verifier = rada.attach_verifier(record, opts)
+    pokoj.append_msg("system", "rada", "system",
+                     f"Verifier: {verifier['status']} — {verifier['reason']}")
 
     # ── [4] RECENZJA — wicemistrz WEDŁUG GŁOSOWANIA (nie samooceny)
     others = [n for n in bids if n != winner]
@@ -605,11 +611,16 @@ def main():
     ap.add_argument("--timeout", type=int, default=300, help="limit [s] na wypowiedź")
     ap.add_argument("--timeout-exec", type=int, default=3600,
                     help="limit [s] na wykonanie zadania przez zwycięzcę rady")
+    ap.add_argument("--verify-timeout", type=int, default=None,
+                    help="limit [s] dla deterministycznego verifiera")
+    ap.add_argument("--verify-cmd", nargs=argparse.REMAINDER, default=None,
+                    help="argv verifiera; ta flaga musi być ostatnia")
     ap.add_argument("--no-sprostowania", action="store_true")
     ap.add_argument("--no-open", action="store_true", help="nie otwieraj przeglądarki")
     OPTS = ap.parse_args()
 
     AGENTS = rada.load_agents(OPTS.agents, OPTS.only)
+    rada.configure_verifier_options(OPTS, OPTS.agents)
     if not AGENTS:
         print(rada.red("Brak włączonych agentów — sprawdź agents.json lub flagę --only."))
         sys.exit(1)
