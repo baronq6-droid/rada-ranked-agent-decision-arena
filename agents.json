@@ -50,6 +50,8 @@
     "enabled": true,
     "bid_cmd": [
       "gemini.cmd",
+      "--model",
+      "gemini-3.1-flash-lite",
       "-p",
       "{prompt}",
       "--output-format",
@@ -57,6 +59,8 @@
     ],
     "exec_cmd": [
       "gemini.cmd",
+      "--model",
+      "gemini-3.1-flash-lite",
       "-p",
       "{prompt}",
       "--output-format",
