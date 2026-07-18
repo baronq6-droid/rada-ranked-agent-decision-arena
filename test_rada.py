@@ -397,6 +397,25 @@ class Test10_WindowsCliInterop(unittest.TestCase):
         self.assertEqual(kwargs["encoding"], "utf-8")
         self.assertEqual(kwargs["errors"], "replace")
 
+    def test_prompt_stdin_raw_jest_usuwany_z_argv(self):
+        completed = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        prompt = "pierwsza linia\ndruga linia"
+        cfg = {
+            "bid_cmd": [
+                "agent.cmd", "-p", "", "--output-format", "json",
+                "{prompt_stdin_raw}",
+            ]
+        }
+
+        with mock.patch.object(rada.subprocess, "run", return_value=completed) as run_mock:
+            wynik = rada.run_agent("x", cfg, "bid", prompt, "t", 10, False, ".")
+
+        args, kwargs = run_mock.call_args
+        self.assertTrue(wynik["ok"])
+        self.assertEqual(
+            args[0], ["agent.cmd", "-p", "", "--output-format", "json"])
+        self.assertEqual(kwargs["input"], prompt)
+
 
 class Test11_DeterministicVerifier(unittest.TestCase):
     """Verifier ma rozstrzygać wynik bez modelu, shella i wycieku sekretów."""

@@ -53,19 +53,21 @@
       "--model",
       "gemini-3.1-flash-lite",
       "-p",
-      "{prompt}",
+      "",
       "--output-format",
-      "json"
+      "json",
+      "{prompt_stdin_raw}"
     ],
     "exec_cmd": [
       "gemini.cmd",
       "--model",
       "gemini-3.1-flash-lite",
       "-p",
-      "{prompt}",
+      "",
       "--output-format",
       "json",
-      "--yolo"
+      "--yolo",
+      "{prompt_stdin_raw}"
     ]
   },
   "grok": {

@@ -177,7 +177,7 @@ python3 web.py               # na żywych agentach (otwiera http://localhost:878
 ## Testy
 
 ```bash
-python3 -m unittest test_rada -v      # 39 testów regresyjnych
+python3 -m unittest test_rada -v      # 40 testów regresyjnych
 ```
 
 `test_rada.py` pilnuje czterech błędów wykrytych w code review v0 (każdy test najpierw

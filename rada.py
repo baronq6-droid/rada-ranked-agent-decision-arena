@@ -67,8 +67,10 @@ DEFAULT_AGENTS = {
     "gemini": {
         "opis": "Gemini CLI (Google)",
         "enabled": True,
-        "bid_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json"],
-        "exec_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json", "--yolo"],
+        "bid_cmd": ["gemini", "-p", "", "--output-format", "json",
+                    "{prompt_stdin_raw}"],
+        "exec_cmd": ["gemini", "-p", "", "--output-format", "json", "--yolo",
+                     "{prompt_stdin_raw}"],
     },
     "grok": {
         "opis": "Grok Build (xAI)",
@@ -290,9 +292,16 @@ def run_agent(name: str, cfg: dict, phase: str, prompt: str, task: str,
         if (not isinstance(template, list) or not template
                 or not all(isinstance(part, str) for part in template)):
             raise ValueError(f"{cmd_key} musi być niepustą listą tekstów")
-        prompt_via_stdin = "{prompt_stdin}" in template
-        cmd = ["-" if part == "{prompt_stdin}" else part.replace("{prompt}", prompt)
-               for part in template]
+        prompt_via_stdin = any(
+            part in {"{prompt_stdin}", "{prompt_stdin_raw}"} for part in template)
+        cmd = []
+        for part in template:
+            if part == "{prompt_stdin}":
+                cmd.append("-")
+            elif part == "{prompt_stdin_raw}":
+                continue
+            else:
+                cmd.append(part.replace("{prompt}", prompt))
         proc = subprocess.run(
             cmd,
             capture_output=True,
