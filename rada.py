@@ -60,15 +60,17 @@ DEFAULT_AGENTS = {
     "codex": {
         "opis": "Codex CLI (OpenAI)",
         "enabled": True,
-        "bid_cmd": ["codex", "exec", "--skip-git-repo-check", "{prompt}"],
+        "bid_cmd": ["codex", "exec", "--skip-git-repo-check", "{prompt_stdin}"],
         "exec_cmd": ["codex", "exec", "--skip-git-repo-check",
-                     "--sandbox", "workspace-write", "{prompt}"],
+                     "--sandbox", "workspace-write", "{prompt_stdin}"],
     },
     "gemini": {
         "opis": "Gemini CLI (Google)",
         "enabled": True,
-        "bid_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json"],
-        "exec_cmd": ["gemini", "-p", "{prompt}", "--output-format", "json", "--yolo"],
+        "bid_cmd": ["gemini", "-p", "", "--output-format", "json",
+                    "{prompt_stdin_raw}"],
+        "exec_cmd": ["gemini", "-p", "", "--output-format", "json", "--yolo",
+                     "{prompt_stdin_raw}"],
     },
     "grok": {
         "opis": "Grok Build (xAI)",
@@ -102,6 +104,7 @@ MEMORY_TAIL_CHARS = 4000  # ile znaków wspólnej pamięci dostają agenci
 
 BID_PROMPT = """Jesteś agentem "{agent}" w zespole AI o nazwie Rada Modeli. Do zespołu wpłynęło zadanie.
 NIE wykonuj zadania. Oceń jedynie szczerze, jak dobrze TY wykonałbyś je osobiście.
+Nie używaj narzędzi, nie czytaj plików i nie uruchamiaj poleceń — to tylko krótka oferta.
 
 ZADANIE:
 {task}
@@ -115,6 +118,7 @@ Odpowiedz WYŁĄCZNIE jednym obiektem JSON, bez żadnego tekstu przed ani po:
 VOTE_PROMPT = """Jesteś członkiem rady agentów AI. Rada rozstrzyga, kto wykona zadanie.
 Oferty są anonimowe — oceń je wyłącznie merytorycznie (realizm planu, świadomość ryzyk, dopasowanie do zadania).
 Deklarowana pewność bywa zawyżona, nie kieruj się nią ślepo.
+Nie używaj narzędzi ani nie uruchamiaj poleceń — wszystkie dane do oceny są poniżej.
 
 ZADANIE:
 {task}
@@ -137,6 +141,7 @@ KONTEKST WSPÓLNEJ PAMIĘCI ZESPOŁU (może być pusty):
 Wykonaj zadanie najlepiej, jak potrafisz. Na końcu odpowiedzi podaj zwięzłe podsumowanie tego, co zrobiłeś (i wskaż zmienione pliki, jeśli dotyczy)."""
 
 REVIEW_PROMPT = """Jesteś recenzentem w radzie agentów AI. Inny agent wykonał zadanie — sprawdź jego pracę.
+Nie używaj narzędzi ani nie uruchamiaj poleceń — oceń wyłącznie raport podany poniżej.
 
 ZADANIE:
 {task}
@@ -287,8 +292,26 @@ def run_agent(name: str, cfg: dict, phase: str, prompt: str, task: str,
         if (not isinstance(template, list) or not template
                 or not all(isinstance(part, str) for part in template)):
             raise ValueError(f"{cmd_key} musi być niepustą listą tekstów")
-        cmd = [part.replace("{prompt}", prompt) for part in template]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        prompt_via_stdin = any(
+            part in {"{prompt_stdin}", "{prompt_stdin_raw}"} for part in template)
+        cmd = []
+        for part in template:
+            if part == "{prompt_stdin}":
+                cmd.append("-")
+            elif part == "{prompt_stdin_raw}":
+                continue
+            else:
+                cmd.append(part.replace("{prompt}", prompt))
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            input=prompt if prompt_via_stdin else None,
+            timeout=timeout,
+            cwd=cwd,
+        )
         text = unwrap_stdout(proc.stdout)
         rc = proc.returncode
         # Proces uznajemy za udany TYLKO gdy kod wyjścia == 0 i jest jakiś tekst.

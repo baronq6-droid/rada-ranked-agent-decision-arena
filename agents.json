@@ -34,7 +34,7 @@
       "codex",
       "exec",
       "--skip-git-repo-check",
-      "{prompt}"
+      "{prompt_stdin}"
     ],
     "exec_cmd": [
       "codex",
@@ -42,7 +42,7 @@
       "--skip-git-repo-check",
       "--sandbox",
       "workspace-write",
-      "{prompt}"
+      "{prompt_stdin}"
     ]
   },
   "gemini": {
@@ -51,17 +51,19 @@
     "bid_cmd": [
       "gemini",
       "-p",
-      "{prompt}",
+      "",
       "--output-format",
-      "json"
+      "json",
+      "{prompt_stdin_raw}"
     ],
     "exec_cmd": [
       "gemini",
       "-p",
-      "{prompt}",
+      "",
       "--output-format",
       "json",
-      "--yolo"
+      "--yolo",
+      "{prompt_stdin_raw}"
     ]
   },
   "grok": {
