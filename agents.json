@@ -31,13 +31,13 @@
     "opis": "Codex CLI (OpenAI)",
     "enabled": true,
     "bid_cmd": [
-      "codex",
+      "codex.cmd",
       "exec",
       "--skip-git-repo-check",
       "{prompt}"
     ],
     "exec_cmd": [
-      "codex",
+      "codex.cmd",
       "exec",
       "--skip-git-repo-check",
       "--sandbox",
