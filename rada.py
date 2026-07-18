@@ -494,7 +494,7 @@ def council_run(task: str, agents: dict, opts) -> None:
         print("\n— wynik —\n" + result_text)
         record.update({"routing": "reczny", "winner": name, "result": res,
                        "votes": None, "tally": "routing ręczny"})
-        print_verifier_result(attach_verifier(record, opts))
+        print_verifier_result(attach_verifier(record, opts, execution_attempted=res["ok"]))
         save_run(run_id, record)
         append_memory(subtask, name, "routing ręczny", res["text"] or str(res["error"]), run_id)
         return
@@ -601,7 +601,8 @@ def council_run(task: str, agents: dict, opts) -> None:
         print(red(f"\nWykonawca zawiódł: {exec_res['error']}"))
 
     # ── WERYFIKACJA DETERMINISTYCZNA — jedyne źródło final_status
-    print_verifier_result(attach_verifier(record, opts))
+    print_verifier_result(attach_verifier(
+        record, opts, execution_attempted=exec_res["ok"]))
 
     # ── RECENZJA (opcjonalna)
     if opts.review and exec_res["ok"] and len(bids) > 1:

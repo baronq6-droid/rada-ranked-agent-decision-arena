@@ -463,6 +463,29 @@ class Test10_DeterministicVerifier(unittest.TestCase):
         self.assertEqual(record["final_status"], "success")
         self.assertFalse(record["review"]["parsed"]["ok"])
 
+    def test_nieudane_wykonanie_nie_moze_dac_final_status_success(self):
+        bid = {"ok": True, "text": '{"confidence": 80, "approach": "plan"}',
+               "stderr": "", "seconds": 0.0, "error": None, "returncode": 0}
+        failed_exec = {"ok": False, "text": "", "stderr": "awaria", "seconds": 0.0,
+                       "error": "proces zakończył się kodem 7", "returncode": 7}
+        opts = SimpleNamespace(
+            mock=False, no_vote=False, review=False, timeout_bid=1, timeout_exec=1,
+            cwd=".", verify_cmd=[sys.executable, "-c", "print('ok')"], verify_timeout=10,
+        )
+        saved = []
+
+        with mock.patch.object(rada, "read_memory", return_value=""), \
+                mock.patch.object(rada, "run_parallel", return_value={"alpha": bid}), \
+                mock.patch.object(rada, "run_agent", return_value=failed_exec), \
+                mock.patch.object(rada, "save_run",
+                                  side_effect=lambda _run_id, record: saved.append(record)), \
+                mock.patch.object(rada, "append_memory"):
+            cichy(rada.council_run, "zadanie", {"alpha": {"opis": ""}}, opts)
+
+        self.assertEqual(saved[0]["verifier"]["status"], "INCONCLUSIVE")
+        self.assertEqual(saved[0]["verifier"]["reason"], "execution did not run")
+        self.assertEqual(saved[0]["final_status"], "unverified")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

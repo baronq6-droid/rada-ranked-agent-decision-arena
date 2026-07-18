@@ -120,7 +120,7 @@ python3 ranking.py        # wins, review verdicts, juror accuracy per agent
 ## Tests
 
 ```bash
-python3 -m unittest test_rada -v     # 36 regression tests
+python3 -m unittest test_rada -v     # 37 regression tests
 ```
 
 Covers: exit-code handling, config validation, Borda dedup, brace-safe JSON

@@ -282,7 +282,7 @@ def process_rada(task: str):
         pokoj.append_msg("system", "rada", "system",
                          f"Wykonawca {winner} zawiódł: {er.get('error')}")
 
-    verifier = rada.attach_verifier(record, opts)
+    verifier = rada.attach_verifier(record, opts, execution_attempted=er["ok"])
     pokoj.append_msg("system", "rada", "system",
                      f"Verifier: {verifier['status']} — {verifier['reason']}")
 
