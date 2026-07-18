@@ -1,6 +1,9 @@
-# Rada Modeli (Model Council) 🗳️
+# RADA — Ranked Agent Decision Arena 🗳️
 
-One local hub where your AI coding agents — **Claude Code, Codex, Gemini CLI and
+**Built with Codex. Open to every model.**
+
+**RADA — Ranked Agent Decision Arena, formerly Rada Modeli,** is one local hub
+where your AI coding agents — **Claude Code, Codex, Gemini CLI and
 Grok Build** — decide *together* who should do the task. Instead of you switching
 between four apps, the models bid, vote blind, one executes, another reviews.
 Vendor-neutral. Zero dependencies. Fully audited.

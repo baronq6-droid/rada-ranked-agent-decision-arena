@@ -1,4 +1,4 @@
-# Scenariusz demo na Build Week (zadania + wideo 60–90 s)
+# RADA — scenariusz demo na Build Week (zadania + wideo 60–90 s)
 
 Cel: 8–12 przebiegów rady na żywych agentach, jeden przypadek „rada wybrała lepiej niż
 ręczny wybór", pierwszy ranking i materiał na film. Wszystko robisz u siebie; poniżej
@@ -66,7 +66,7 @@ Zrzut tabeli → README + jedno ujęcie w wideo. To odpowiedź na pytanie sędzi
 | 35–50 s | głosy + tablica z 🏆 | „They vote blind — Borda count picks the executor. Here the most confident agent actually lost the vote." (jeśli masz przypadek z pkt 2) |
 | 50–65 s | wykonanie + recenzja ✅ + diff w repo | „The winner executes in my repo; the runner-up reviews the result." |
 | 65–80 s | `ranking.py` + `runs/*.json` w edytorze | „Every decision is audited — bids, votes, reviews. Over time it ranks who really delivers." |
-| 80–90 s | zakończenie: repo + napis | „Built during Build Week **with Codex on GPT‑5.6** — Codex fixed four review findings itself [pokaż commity]. Rada Modeli: a vendor-neutral control plane for AI coding agents." |
+| 80–90 s | zakończenie: repo + napis | „Built during Build Week **with Codex on GPT‑5.6** — Codex fixed four review findings itself [pokaż commity]. RADA — Ranked Agent Decision Arena: a vendor-neutral control plane for AI coding agents." |
 
 Nagranie: OBS albo nagrywanie ekranu systemowe, 1080p, jasna czcionka przeglądarki
 (Ctrl+`+`), kursor powiększony. Audio: prosty angielski wystarczy; **musi paść, jak

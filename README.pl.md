@@ -1,4 +1,6 @@
-# Rada Modeli 🗳️
+# RADA — Ranked Agent Decision Arena 🗳️
+
+*Dawniej: Rada Modeli.*
 
 > English documentation: see `README.md`.
 

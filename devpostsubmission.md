@@ -1,13 +1,12 @@
-# Devpost submission — Rada Modeli (Model Council)
+# Devpost submission — RADA — Ranked Agent Decision Arena
 
 Wypełniasz formularz na Devpost tym tekstem. Miejsca do uzupełnienia oznaczone `[...]`.
 
 ---
 
-**Project name:** Rada Modeli (Model Council)
+**Project name:** RADA — Ranked Agent Decision Arena
 
-**Tagline:** AI coding agents bid anonymously for your task, vote on the best plan,
-the winner executes — and the runner-up reviews the result. Vendor-neutral, fully audited.
+**Tagline:** Built with Codex. Open to every model.
 
 **Category:** Developer Tools
 
@@ -15,9 +14,9 @@ the winner executes — and the runner-up reviews the result. Vendor-neutral, fu
 
 ## What it does
 
-Rada Modeli ("Model Council" in Polish) is a local, vendor-neutral control plane for
+RADA is a local, vendor-neutral control plane for
 AI coding agents. It connects Claude Code, Codex CLI, Gemini CLI and Grok Build —
-four agents from four competing vendors — into one decision-making body:
+four agents from four competing vendors — in one decision arena:
 
 1. **Bidding.** Your task goes to every agent. Each returns a structured bid:
    confidence (0–100), plan, risks, effort — without executing anything.
@@ -25,7 +24,7 @@ four agents from four competing vendors — into one decision-making body:
    (Borda count). No agent knows which bid is its own — this matters, because models
    asked "can you do it?" always say yes. Judging rivals' plans blind, they get honest.
 3. **Execution.** Only the vote winner executes, in your repo. One execution instead
-   of four — this is what makes the council cheap compared to "run everything and
+   of four — this is what makes the arena cheap compared to "run everything and
    compare" orchestrators.
 4. **Review.** The vote runner-up reviews the winner's work.
 5. **Audit trail.** Every bid, vote, mapping, result and review lands in
@@ -58,7 +57,7 @@ other assistants, with Codex doing the hands-on engineering on the final repo:
   - `f2f91f7` — Windows portability: portable tests (`sys.executable`), UTF‑8 stdio
 - Codex also wrote the accompanying regression tests — the suite grew from 17 to
   **22 tests**, all green natively on Windows, Linux and macOS.
-- Codex ran the verification loop itself (unit tests, mock council runs, web smoke).
+- Codex ran the verification loop itself (unit tests, mock RADA runs, web smoke).
 - **Codex Session ID (`/feedback`):** `[WKLEJ SESSION ID]`
 
 Meta-twist: GPT‑5.6 isn't just the build tool — **Codex is one of the four agents
@@ -77,7 +76,7 @@ strict JSON parsing that survives braces inside strings and vote-stuffing attemp
 
 ## Accomplishments we're proud of
 
-The project was **code-reviewed by the very models that sit on its council** — an
+The project was **code-reviewed by the very models that participate in RADA** — an
 external review found 4 critical/high bugs, all reproduced, fixed and locked with
 regression tests. The selection mechanism is not marketing: anonymization, shuffled
 order, Borda with dedup, tie-breaks, and juror-accuracy tracking are all implemented
@@ -94,7 +93,7 @@ can't recognize them.
 
 SQLite event store (ordering + metrics), live streaming of the winner's work,
 per-run token/cost accounting, ACP as a second transport, and a proper benchmark
-(success@1, regret, Brier-calibrated confidence) to prove the council beats both
+(success@1, regret, Brier-calibrated confidence) to prove RADA beats both
 random choice and "pick the most confident" — data first, then weighted voting.
 
 ---
@@ -102,7 +101,7 @@ random choice and "pick the most confident" — data first, then weighted voting
 ## How to test (for judges)
 
 ```bash
-# no keys needed — full simulated council in the browser:
+# no keys needed — full simulated arena in the browser:
 python3 web.py --mock          # open http://localhost:8787 and type:  :rada add a --version flag
 
 # terminal flow with review:

@@ -374,7 +374,7 @@ PAGE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pokój — komunikator modeli</title>
+<title>RADA — pokój modeli</title>
 <style>
   :root{
     --bg:#0e1116; --panel:#161b22; --bubble:#1d242e; --me:#2456c8;
@@ -440,7 +440,7 @@ PAGE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>💬 Pokój — komunikator modeli</h1>
+  <h1>💬 RADA — pokój modeli</h1>
   <div class="who" id="who"></div>
 </header>
 <main id="chat"></main>

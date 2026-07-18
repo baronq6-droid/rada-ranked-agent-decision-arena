@@ -1,8 +1,8 @@
-# AGENTS.md — instrukcje dla agenta pracującego w tym repo
+# AGENTS.md — RADA — Ranked Agent Decision Arena
 
 ## Czym jest ten projekt
 
-**Rada Modeli** — lokalny orkiestrator agentów AI (Claude Code, Codex, Gemini CLI,
+**RADA — Ranked Agent Decision Arena** (dawniej: Rada Modeli) — lokalny orkiestrator agentów AI (Claude Code, Codex, Gemini CLI,
 Grok Build): agenci składają oferty na zadanie, głosują anonimowo (Borda), zwycięzca
 wykonuje, wicemistrz recenzuje. Stan: działające v0.1 po zewnętrznym code review.
 Trwa sprint na OpenAI Build Week (deadline 21.07) — pracujemy małymi, pewnymi krokami.
