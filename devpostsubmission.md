@@ -61,7 +61,7 @@ other assistants, with Codex doing the hands-on engineering on the final repo:
   **22 tests**, all green natively on Windows, Linux and macOS.
 - A final hardening pass added the public-name sweep (`6c8b6dd`), isolated malformed
   agent configs and worker failures (`316d0ac`), and added the deterministic verifier.
-  The suite now has **37 tests** and is green natively on Windows.
+  The suite now has **39 tests** and is green natively on Windows.
 - Codex ran the verification loop itself (unit tests, mock RADA runs, web smoke).
 - **Codex Session ID (`/feedback`):** `[WKLEJ SESSION ID]`
 
@@ -112,7 +112,7 @@ python3 web.py --mock          # open http://localhost:8787 and type:  :rada add
 # terminal flow with review:
 python3 rada.py --mock --review "refactor the payments module"
 
-# regression suite (37 tests):
+# regression suite (39 tests):
 python3 -m unittest test_rada -v
 
 # with real agents: install & log in claude / codex / gemini / grok CLIs, then drop --mock

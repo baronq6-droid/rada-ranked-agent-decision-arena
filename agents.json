@@ -34,7 +34,7 @@
       "codex.cmd",
       "exec",
       "--skip-git-repo-check",
-      "{prompt}"
+      "{prompt_stdin}"
     ],
     "exec_cmd": [
       "codex.cmd",
@@ -42,7 +42,7 @@
       "--skip-git-repo-check",
       "--sandbox",
       "workspace-write",
-      "{prompt}"
+      "{prompt_stdin}"
     ]
   },
   "gemini": {

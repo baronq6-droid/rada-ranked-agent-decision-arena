@@ -365,7 +365,40 @@ class Test9_AgentFailureIsolation(unittest.TestCase):
         self.assertIsNone(wynik["returncode"])
 
 
-class Test10_DeterministicVerifier(unittest.TestCase):
+class Test10_WindowsCliInterop(unittest.TestCase):
+    """Wyjście CLI ma być UTF-8, a wielowierszowy prompt może iść przez stdin."""
+
+    def test_wyjscie_utf8_nie_jest_dekodowane_przez_cp1250(self):
+        tekst = "Zażółć gęślą jaźń — 😀"
+        kod = (
+            "import sys; "
+            f"sys.stdout.buffer.write({tekst!r}.encode('utf-8'))"
+        )
+
+        wynik = rada.run_agent(
+            "x", {"bid_cmd": [sys.executable, "-c", kod]},
+            "bid", "p", "t", 10, False, ".")
+
+        self.assertTrue(wynik["ok"])
+        self.assertEqual(wynik["text"], tekst)
+
+    def test_prompt_stdin_nie_trafia_do_argv(self):
+        completed = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        prompt = "pierwsza linia\ndruga linia"
+        cfg = {"bid_cmd": ["agent.cmd", "exec", "{prompt_stdin}"]}
+
+        with mock.patch.object(rada.subprocess, "run", return_value=completed) as run_mock:
+            wynik = rada.run_agent("x", cfg, "bid", prompt, "t", 10, False, ".")
+
+        args, kwargs = run_mock.call_args
+        self.assertTrue(wynik["ok"])
+        self.assertEqual(args[0], ["agent.cmd", "exec", "-"])
+        self.assertEqual(kwargs["input"], prompt)
+        self.assertEqual(kwargs["encoding"], "utf-8")
+        self.assertEqual(kwargs["errors"], "replace")
+
+
+class Test11_DeterministicVerifier(unittest.TestCase):
     """Verifier ma rozstrzygać wynik bez modelu, shella i wycieku sekretów."""
 
     RESULT_KEYS = {"status", "reason", "stdout", "stderr", "seconds", "returncode"}
