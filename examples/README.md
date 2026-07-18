@@ -13,5 +13,17 @@ The record contains the complete bids, votes, execution report, verifier result,
 and model review. It was checked before publication for local paths, credentials,
 API keys, email addresses, and session identifiers; none are present.
 
-SHA-256:
-`5396b7c98c03e11d66e1629d04152e229e68a0aabcdb8ed57a52784799d1a091`
+Canonical repository artifact (LF) SHA-256:
+`53f6e8da0864010cead08809d845954d8fa427c5a619f041c014ee6b553f4519`
+
+Verify it after a fresh clone:
+
+```bash
+sha256sum examples/sample-run.json
+```
+
+Private original (Windows, CRLF) SHA-256:
+`5396b7c98c03e11d66e1629d04152e229e68a0aabcdb8ed57a52784799d1a091`.
+The content is identical; the only difference is line endings, confirmed by
+reconstructing CRLF from the repository's LF artifact. `.gitattributes` marks
+the repository artifact as `-text` so Git does not rewrite its bytes at checkout.
