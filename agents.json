@@ -49,14 +49,14 @@
     "opis": "Gemini CLI (Google)",
     "enabled": true,
     "bid_cmd": [
-      "gemini",
+      "gemini.cmd",
       "-p",
       "{prompt}",
       "--output-format",
       "json"
     ],
     "exec_cmd": [
-      "gemini",
+      "gemini.cmd",
       "-p",
       "{prompt}",
       "--output-format",
