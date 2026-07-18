@@ -289,5 +289,81 @@ class Test8_ManualRoutingRecord(unittest.TestCase):
         self.assertIn("error", record["result"])
 
 
+class Test9_AgentFailureIsolation(unittest.TestCase):
+    """P0: wadliwa konfiguracja jednego agenta nie może wywracać całej rady."""
+
+    RESULT_KEYS = {"ok", "text", "stderr", "seconds", "error", "returncode"}
+
+    def _zapisz(self, obj):
+        fd, sciezka = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        Path(sciezka).write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
+        self.addCleanup(os.unlink, sciezka)
+        return sciezka
+
+    def test_agent_bez_bid_cmd_zwraca_rekord_bledu(self):
+        wynik = rada.run_agent("x", {"enabled": True}, "bid", "p", "t", 5, False, ".")
+
+        self.assertEqual(set(wynik), self.RESULT_KEYS)
+        self.assertFalse(wynik["ok"])
+        self.assertIsNone(wynik["returncode"])
+        self.assertIn("bid_cmd", wynik["error"])
+
+    def test_bid_cmd_jako_string_jest_pomijany_przy_load(self):
+        cfg = {
+            "wadliwy": {"enabled": True, "bid_cmd": "agent -p", "exec_cmd": ["agent"]},
+        }
+
+        agents = cichy(rada.load_agents, self._zapisz(cfg), "")
+
+        self.assertNotIn("wadliwy", agents)
+
+    def test_element_nietekstowy_w_poleceniu_jest_pomijany_przy_load(self):
+        cfg = {
+            "wadliwy": {"enabled": True, "bid_cmd": ["agent", 7], "exec_cmd": ["agent"]},
+        }
+
+        agents = cichy(rada.load_agents, self._zapisz(cfg), "")
+
+        self.assertNotIn("wadliwy", agents)
+
+    def test_wyjatek_jednego_future_nie_gubi_dobrego_wyniku(self):
+        dobry = {"ok": True, "text": "ok", "stderr": "", "seconds": 0.0,
+                 "error": None, "returncode": 0}
+
+        def worker(name, *_args, **_kwargs):
+            if name == "zly":
+                raise RuntimeError("awaria workera")
+            return dobry
+
+        with mock.patch.object(rada, "run_agent", side_effect=worker):
+            wyniki = rada.run_parallel(
+                {"dobry": {}, "zly": {}}, "bid", {"dobry": "p", "zly": "p"},
+                "t", 5, False, ".")
+
+        self.assertTrue(wyniki["dobry"]["ok"])
+        self.assertEqual(set(wyniki["zly"]), self.RESULT_KEYS)
+        self.assertFalse(wyniki["zly"]["ok"])
+        self.assertIn("RuntimeError", wyniki["zly"]["error"])
+
+    def test_zly_cwd_raportuje_katalog_roboczy(self):
+        cwd = str(Path(tempfile.gettempdir()) / f"rada-brak-{os.getpid()}")
+        cfg = {"bid_cmd": [sys.executable, "-c", "print('ok')"]}
+
+        wynik = rada.run_agent("x", cfg, "bid", "p", "t", 5, False, cwd)
+
+        self.assertFalse(wynik["ok"])
+        self.assertIn("katalog roboczy", wynik["error"].lower())
+        self.assertNotIn("PATH", wynik["error"])
+        self.assertIsNone(wynik["returncode"])
+
+    def test_pusta_lista_polecenia_ma_czytelny_blad(self):
+        wynik = rada.run_agent("x", {"bid_cmd": []}, "bid", "p", "t", 5, False, ".")
+
+        self.assertFalse(wynik["ok"])
+        self.assertIn("niepustą listą tekstów", wynik["error"])
+        self.assertIsNone(wynik["returncode"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

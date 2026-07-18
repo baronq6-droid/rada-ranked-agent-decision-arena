@@ -259,17 +259,22 @@ def mock_response(agent: str, phase: str, prompt: str, task: str) -> str:
 
 def run_agent(name: str, cfg: dict, phase: str, prompt: str, task: str,
               timeout: int, mock: bool, cwd: str) -> dict:
-    """Zwraca: {ok, text, stderr, seconds, error}"""
+    """Zwraca: {ok, text, stderr, seconds, error, returncode}."""
     t0 = time.time()
     if mock:
         time.sleep(0.15)
         return {"ok": True, "text": mock_response(name, phase, prompt, task),
-                "stderr": "", "seconds": round(time.time() - t0, 2), "error": None}
+                "stderr": "", "seconds": round(time.time() - t0, 2), "error": None,
+                "returncode": 0}
 
     cmd_key = "exec_cmd" if phase == "exec" else "bid_cmd"
-    template = cfg.get(cmd_key) or cfg.get("bid_cmd")
-    cmd = [part.replace("{prompt}", prompt) for part in template]
+    template = None
     try:
+        template = cfg.get(cmd_key) or cfg.get("bid_cmd")
+        if (not isinstance(template, list) or not template
+                or not all(isinstance(part, str) for part in template)):
+            raise ValueError(f"{cmd_key} musi być niepustą listą tekstów")
+        cmd = [part.replace("{prompt}", prompt) for part in template]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
         text = unwrap_stdout(proc.stdout)
         rc = proc.returncode
@@ -284,15 +289,26 @@ def run_agent(name: str, cfg: dict, phase: str, prompt: str, task: str,
             err = None
         return {"ok": ok, "text": text, "stderr": (proc.stderr or "")[-2000:],
                 "seconds": round(time.time() - t0, 2), "error": err, "returncode": rc}
-    except FileNotFoundError:
-        return {"ok": False, "text": "", "stderr": "", "seconds": 0.0,
-                "error": f"brak polecenia „{template[0]}” w PATH"}
     except subprocess.TimeoutExpired:
         return {"ok": False, "text": "", "stderr": "", "seconds": round(time.time() - t0, 2),
-                "error": f"przekroczono limit {timeout}s"}
+                "error": f"przekroczono limit {timeout}s", "returncode": None}
+    except OSError as e:
+        error_path = os.path.normcase(os.path.abspath(os.fspath(e.filename))) if e.filename else None
+        cwd_path = os.path.normcase(os.path.abspath(os.fspath(cwd)))
+        if error_path == cwd_path or not Path(cwd).is_dir():
+            error = f"nieprawidłowy katalog roboczy „{cwd}”"
+        elif isinstance(e, FileNotFoundError):
+            command = template[0] if isinstance(template, list) and template else cmd_key
+            error = f"brak polecenia „{command}” w PATH"
+        else:
+            error = f"błąd uruchomienia procesu: {e}"
+        return {"ok": False, "text": "", "stderr": str(e)[-2000:],
+                "seconds": round(time.time() - t0, 2), "error": error,
+                "returncode": None}
     except Exception as e:  # noqa: BLE001 — prototyp: nie wywracamy całej rady
         return {"ok": False, "text": "", "stderr": str(e)[-2000:],
-                "seconds": round(time.time() - t0, 2), "error": type(e).__name__}
+                "seconds": round(time.time() - t0, 2),
+                "error": f"{type(e).__name__}: {e}", "returncode": None}
 
 def run_parallel(agents: dict, phase: str, prompts: dict, task: str,
                  timeout: int, mock: bool, cwd: str) -> dict:
@@ -301,7 +317,14 @@ def run_parallel(agents: dict, phase: str, prompts: dict, task: str,
         futures = {pool.submit(run_agent, n, cfg, phase, prompts[n], task, timeout, mock, cwd): n
                    for n, cfg in agents.items()}
         for fut in concurrent.futures.as_completed(futures):
-            results[futures[fut]] = fut.result()
+            name = futures[fut]
+            try:
+                results[name] = fut.result()
+            except Exception as e:  # noqa: BLE001 — awaria jednego workera nie kończy fazy
+                results[name] = {
+                    "ok": False, "text": "", "stderr": str(e)[-2000:], "seconds": 0.0,
+                    "error": f"{type(e).__name__}: {e}", "returncode": None,
+                }
     return results
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -532,7 +555,21 @@ def load_agents(path: str, only: str) -> dict:
     if only:
         wanted = {w.strip().lower() for w in only.split(",") if w.strip()}
         agents = {n: cfg for n, cfg in agents.items() if n in wanted}
-    return agents
+    valid_agents = {}
+    for name, cfg in agents.items():
+        invalid_key = next(
+            (key for key in ("bid_cmd", "exec_cmd")
+             if not isinstance(cfg.get(key), list) or not cfg[key]
+             or not all(isinstance(part, str) for part in cfg[key])),
+            None,
+        )
+        if invalid_key:
+            print(red(
+                f"Pomijam „{name}” w {path}: {invalid_key} musi być niepustą listą tekstów."
+            ))
+            continue
+        valid_agents[name] = cfg
+    return valid_agents
 
 def main():
     _configure_utf8_stdio()
