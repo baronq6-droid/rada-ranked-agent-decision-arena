@@ -1,0 +1,109 @@
+{
+  "run_id": "2a8e87fd4d",
+  "task": "Analyze this repository and identify the three biggest risks to a live hackathon demo. For each risk, give one concrete mitigation. Do not modify any files.",
+  "started": "2026-07-18T18:31:29.077428",
+  "mock": false,
+  "routing": "przetarg",
+  "bids": {
+    "claude": {
+      "ok": true,
+      "text": "{\"confidence\": 92, \"approach\": \"Przejrzę strukturę repo (skrypty demo, konfiguracje CLI agentów, runs/), historię commitów i logi błędów, by zidentyfikować realne punkty awarii demo na żywo — np. znany błąd „pusty wynik (kod 0)” groka, zależność od zalogowanych CLI i specyfikę Windows (stdin dla Gemini). Wybiorę trzy ryzyka o największym wpływie na demo i dla każdego podam jedną konkretną, wykonalną mitygację, bez modyfikowania plików.\", \"risks\": \"Ocena opiera się na statycznej analizie — bez uruchomienia CLI mogę przeoczyć problemy środowiskowe (brak logowania, limity API) widoczne dopiero w runtime. Część ryzyk może wymagać weryfikacji na maszynie demo, której nie mam.\", \"effort\": \"S\"}",
+      "stderr": "",
+      "seconds": 19.22,
+      "error": null,
+      "returncode": 0
+    },
+    "codex": {
+      "ok": true,
+      "text": "{\"confidence\":94,\"approach\":\"Przejrzałbym ścieżki krytyczne dema: orkiestrację agentów, obsługę błędów CLI oraz tryby mock/web. Następnie wybrałbym trzy ryzyka według prawdopodobieństwa i wpływu, podając dla każdego jedną wykonalną przed hackathonem mitigację.\",\"risks\":\"Największym wyzwaniem byłoby odróżnienie realnych awarii demonstracyjnych od mniej istotnego długu technicznego oraz uwzględnienie zależności od zewnętrznych CLI i logowania. Analiza bez modyfikacji jest jednak dobrze ograniczona i możliwa do wykonania rzetelnie.\",\"effort\":\"S\"}",
+      "stderr": "i. Do zespołu wpłynęło zadanie.\nNIE wykonuj zadania. Oceń jedynie szczerze, jak dobrze TY wykonałbyś je osobiście.\nNie używaj narzędzi, nie czytaj plików i nie uruchamiaj poleceń — to tylko krótka oferta.\n\nZADANIE:\nAnalyze this repository and identify the three biggest risks to a live hackathon demo. For each risk, give one concrete mitigation. Do not modify any files.\n\nKONTEKST WSPÓLNEJ PAMIĘCI ZESPOŁU (może być pusty):\n# Rada Modeli — dziennik wspólnej pamięci\n\n## 2026-07-18 17:10 — Analyze this repository and list the three biggest demo risks. Do not modify any files.\n- Wykonawca: **grok** (głosowanie: grok 2 pkt, claude 0 pkt)\n- Wynik: BŁĄD: pusty wynik (kod 0)\n- Pełny zapis: runs/ce8c8400f4.json\n\n## 2026-07-18 17:19 — Sprawdź poligon bez zmian w plikach.\n- Wykonawca: **grok** (głosowanie: codex 10 pkt, grok 10 pkt, claude 3 pkt, gemini 1 pkt)\n- Wynik: [MOCK] Agent grok wykonał zadanie: „Sprawdź poligon bez zmian w plikach.”. To symulacja — uruchom bez --mock, gdy masz zainstalowane i zalogowane CLI.\n- Pełny zapis: runs/de949f6824.json\n\n\nOdpowiedz WYŁĄCZNIE jednym obiektem JSON, bez żadnego tekstu przed ani po:\n{\"confidence\": <liczba 0-100>, \"approach\": \"<Twój plan w 2-3 zdaniach>\", \"risks\": \"<główne ryzyka w 1-2 zdaniach>\", \"effort\": \"<S|M|L>\"}\n2026-07-18T17:31:37.316016Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `supports_reasoning_summaries` at line 88 column 5\ncodex\n{\"confidence\":94,\"approach\":\"Przejrzałbym ścieżki krytyczne dema: orkiestrację agentów, obsługę błędów CLI oraz tryby mock/web. Następnie wybrałbym trzy ryzyka według prawdopodobieństwa i wpływu, podając dla każdego jedną wykonalną przed hackathonem mitigację.\",\"risks\":\"Największym wyzwaniem byłoby odróżnienie realnych awarii demonstracyjnych od mniej istotnego długu technicznego oraz uwzględnienie zależności od zewnętrznych CLI i logowania. Analiza bez modyfikacji jest jednak dobrze ograniczona i możliwa do wykonania rzetelnie.\",\"effort\":\"S\"}\ntokens used\n7436\n",
+      "seconds": 16.32,
+      "error": null,
+      "returncode": 0
+    },
+    "gemini": {
+      "ok": true,
+      "text": "{\"confidence\": 95, \"approach\": \"I would begin by mapping the core components and dependencies within the repository to understand critical execution paths and external integrations. Then, I would analyze the code for fragile points, such as hardcoded configurations or synchronous dependencies, to derive the three most impactful risks for a live demonstration.\", \"risks\": \"The primary risks involve potential failures due to unstable external dependencies or APIs and insufficient error handling for real-time, high-stakes environments.\", \"effort\": \"S\"}",
+      "stderr": "Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.\nRipgrep is not available. Falling back to GrepTool.\n",
+      "seconds": 4.65,
+      "error": null,
+      "returncode": 0
+    },
+    "grok": {
+      "ok": true,
+      "text": "{\"confidence\": 82, \"approach\": \"Przejrzę rada.py/web.py/pokoj.py pod kątem ścieżek na żywo (CLI, timeouty, sieć, pamięć runs) oraz test_rada/--mock jako baseline demo. Na tej podstawie wskażę 3 największe ryzyka awarii na scenie i po jednej konkretnej mitigacji (np. fallback mock, preflight, skrypt smoke).\", \"risks\": \"Zależność od zewnętrznych CLI/logowań i niestabilna sieć; puste/nieparsowalne odpowiedzi agentów (jak w dzienniku); brak gotowego plan B gdy prawdziwy przetarg się zawiesi.\", \"effort\": \"S\"}",
+      "stderr": "",
+      "seconds": 8.74,
+      "error": null,
+      "returncode": 0
+    }
+  },
+  "votes": {
+    "claude": {
+      "ok": true,
+      "text": "{\"ranking\": [\"D\", \"A\", \"C\", \"B\"], \"why\": \"D i A odwołują się do konkretów repo (rada.py/web.py, tryb --mock, znany błąd pustych odpowiedzi, runs/) i realistycznie nazywają ograniczenia, przy czym D dodatkowo uwzględnia plan B na scenę; C jest sensowna, lecz ogólniejsza, a B to generyczny szablon bez znajomości projektu mimo najwyższej deklarowanej pewności.\"}",
+      "stderr": "",
+      "seconds": 14.91,
+      "error": null,
+      "returncode": 0
+    },
+    "codex": {
+      "ok": true,
+      "text": "{\"ranking\":[\"D\",\"A\",\"C\",\"B\"],\"why\":\"D najlepiej wskazuje konkretne ścieżki krytyczne repozytorium, realistyczne awarie sceniczne i baseline oparty na testach oraz trybie mock. A jest równie dociekliwa i uwzględnia znany przypadek pustego wyniku, C ma trafny lecz mniej szczegółowy plan, a B pozostaje najbardziej ogólna.\"}",
+      "stderr": "uchomienia CLI mogę przeoczyć problemy środowiskowe (brak logowania, limity API) widoczne dopiero w runtime. Cz…\n[B] pewność: 95/100 | nakład: S | plan: I would begin by mapping the core components and dependencies within the repository to understand critical execution paths and external integrations. Then, I would analyze the code for fragile points, such as hardcoded … | ryzyka: The primary risks involve potential failures due to unstable external dependencies or APIs and insufficient error handling for real-time, high-stakes environme…\n[C] pewność: 94/100 | nakład: S | plan: Przejrzałbym ścieżki krytyczne dema: orkiestrację agentów, obsługę błędów CLI oraz tryby mock/web. Następnie wybrałbym trzy ryzyka według prawdopodobieństwa i wpływu, podając dla każdego jedną wykonalną przed hackathone… | ryzyka: Największym wyzwaniem byłoby odróżnienie realnych awarii demonstracyjnych od mniej istotnego długu technicznego oraz uwzględnienie zależności od zewnętrznych C…\n[D] pewność: 82/100 | nakład: S | plan: Przejrzę rada.py/web.py/pokoj.py pod kątem ścieżek na żywo (CLI, timeouty, sieć, pamięć runs) oraz test_rada/--mock jako baseline demo. Na tej podstawie wskażę 3 największe ryzyka awarii na scenie i po jednej konkretnej… | ryzyka: Zależność od zewnętrznych CLI/logowań i niestabilna sieć; puste/nieparsowalne odpowiedzi agentów (jak w dzienniku); brak gotowego plan B gdy prawdziwy przetarg…\n\nOdpowiedz WYŁĄCZNIE jednym obiektem JSON, bez żadnego tekstu przed ani po:\n{\"ranking\": [\"A\", \"B\", \"C\", \"D\"], \"why\": \"<uzasadnienie w 1-2 zdaniach>\"}\nRanking uporządkuj od najlepszej oferty do najsłabszej i użyj dokładnie identyfikatorów ofert.\ncodex\n{\"ranking\":[\"D\",\"A\",\"C\",\"B\"],\"why\":\"D najlepiej wskazuje konkretne ścieżki krytyczne repozytorium, realistyczne awarie sceniczne i baseline oparty na testach oraz trybie mock. A jest równie dociekliwa i uwzględnia znany przypadek pustego wyniku, C ma trafny lecz mniej szczegółowy plan, a B pozostaje najbardziej ogólna.\"}\ntokens used\n7619\n",
+      "seconds": 8.33,
+      "error": null,
+      "returncode": 0
+    },
+    "gemini": {
+      "ok": true,
+      "text": "{\"ranking\": [\"D\", \"C\", \"B\", \"A\"], \"why\": \"Oferta D jest najbardziej merytoryczna, ponieważ wskazuje konkretne pliki i mechanizmy (mock, test_rada) kluczowe dla stabilności demo, wyprzedzając pozostałe propozycje pod kątem praktycznego zrozumienia ryzyka scenicznego.\"}",
+      "stderr": "Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.\nRipgrep is not available. Falling back to GrepTool.\n",
+      "seconds": 4.82,
+      "error": null,
+      "returncode": 0
+    },
+    "grok": {
+      "ok": true,
+      "text": "```json\n{\"ranking\": [\"D\", \"A\", \"C\", \"B\"], \"why\": \"D najlepiej celuje w demo na żywo: konkretne pliki, ścieżki CLI/timeout/sieć, mock jako baseline i realne awarie z dziennika plus plan B. A ma silne kotwice repo (np. pusty wynik groka), C dobrą priorytetyzację, ale mniej konkretu, B jest generyczna i nie zakotwiczona w projekcie.\"}\n```",
+      "stderr": "",
+      "seconds": 15.0,
+      "error": null,
+      "returncode": 0
+    }
+  },
+  "tally": "grok 12 pkt, claude 6 pkt, codex 5 pkt, gemini 1 pkt",
+  "winner": "grok",
+  "result": {
+    "ok": true,
+    "text": "Analyzing the repo for live-demo risks — reading architecture, demo flow, and failure points without changing files.# Trzy największe ryzyka live demo (hackathon)\n\nŹródła: `rada.py` / `web.py` / `agents.json` / `scenariuszdemo.md` oraz realny przebieg `rada_memory/runs/ce8c8400f4.json` (zadanie prawie identyczne z tym — kończy się **BŁĄD: pusty wynik**).\n\n---\n\n## 1. Kruche CLI agentów: quota, auth, PATH, „agent się nie odzywa”\n\n**Dlaczego to #1 na żywo**  \nPełny przebieg `:rada` woła **4 zewnętrzne CLI** (oferta + głos + ewentualnie exec/recenzja). Każdy padnięty agent = dziura w kartach ofert / głosach albo w ogóle brak oferty.\n\nW `ce8c8400f4.json` to już się wydarzyło:\n- **gemini** — `429` free-tier (`quota exceeded … free_tier_requests, limit: 20`), bid i vote `ok: false`\n- **codex** — exit 0, ale treść typu *„Gotowy. Prześlij treść zlecenia…”* (nie JSON oferty/głosu) → de facto bezużyteczny w radzie\n- Scenariusz sam to ostrzega: *„Padnięty agent w demo = stracone ujęcie”*\n\nPrzy 8–12 przebiegach demo (scenariusz) free-tier i rate limity są niemal pewne.\n\n**Mitygacja (konkret)**  \nNa 30–60 min przed nagraniem: ping wszystkich czterech CLI (`claude -p \"ping\"`, `codex exec \"ping\"`, `gemini -p \"ping\"`, `grok -p \"ping\"`), sprawdź billing/quota (szczególnie Gemini poza free tier), potem **dry-run jednego krótkiego** `python3 rada.py --review \"ping task\"` i trzymaj plan B:  \n`--only claude,codex,grok` (albo dwójkę najstabilniejszą) **oraz** otwarty terminal z `web.py --mock` / `rada.py --mock --review \"…\"` na wypadek totalnego blackoutu API — mock pokazuje pełny flow UI, prawdziwy run tylko na 1–2 ujęciach „hero”.\n\n---\n\n## 2. Klimaks demo pada na wykonaniu: pusty stdout / zły format odpowiedzi\n\n**Dlaczego to zabija film**  \nDramaturgia w `scenariuszdemo.md` stoi na: oferty → głosy → 🏆 → **wykonanie w repo** → recenzja.  \nRdzeń traktuje sukces tylko gdy `returncode == 0` **i** niepusty tekst:\n\n```317:323:rada.py\n        # Proces uznajemy za udany TYLKO gdy kod wyjścia == 0 i jest jakiś tekst.\n        ok = (rc == 0) and bool(text.strip())\n        ...\n        elif not text.strip():\n            err = \"pusty wynik (kod 0)\"\n```\n\nW tym samym live runie **grok wygrał** głosowanie, a potem:\n\n```json\n\"result\": { \"ok\": false, \"text\": \"\", \"error\": \"pusty wynik (kod 0)\", \"returncode\": 0 }\n```\n\nEfekt na UI/terminalu: **„Wykonawca zawiódł”**, recenzja się nie odpala (`review` tylko gdy `exec_res[\"ok\"]`), verifier = `INCONCLUSIVE` / `unverified`.  \nDodatkowo bid/vote wymagają czystego JSON (`confidence` / `ranking`) — odpowiedź w prozie = pominięcie agenta, a przy zero ważnych ofert: *„Żaden agent nie złożył oferty”*.\n\n**Mitygacja (konkret)**  \nPrzed kamerą **przećwicz hero-zadanie** (np. zadanie 10 ze scenariusza: flaga `--version`) na świeżym poligonie z gitem, aż masz **jeden pewny przebieg** z niepustym wynikiem + recenzją.  \nJeśli live executor znów da pusty wynik: od razu **`@zwyciezca to samo zadanie`** (routing ręczny, bez drugiej pełnej rady) albo skrócone `--only <zwyciezca> --no-vote` na tym samym tasku — ratujesz ujęcie wykonania zamiast czekać na całą radę od zera. Do filmu trzymaj też zrzut/nagranie udanego dry-runu jako backup.\n\n---\n\n## 3. Czas trwania i „zawieszenie” — jeden run może zabić pacing live\n\n**Dlaczego to ryzyko na scenie / przy sędziach**  \nJedna rada to sekwencja: oferty (równolegle, timeout do **300 s**) → głosy (znowu do **300 s**) → exec (domyślnie do **3600 s**) → opcjonalna recenzja.  \nW web UI `STATE[\"busy\"]` blokuje kolejne wiadomości na cały czas (`409: modele jeszcze piszą`) — nie da się „przeskoczyć” zawieszonego CLI z UI.\n\nLive `ce8c8400f4`: same oferty ~55 s (Gemini), głosy ~19 s, potem **57 s pustego exec** — i to bez udanej pracy w repo. Przy 10 zadaniach ze scenariusza to godziny, nie 60–90 s wideo; na żywo jeden hung `codex`/`claude` = martwa scena.\n\n**Mitygacja (konkret)**  \nNa nagranie / live demo uruchamiaj z twardymi limitami, np.:\n\n```bash\npython3 web.py --timeout 90 --timeout-exec 180\n```\n\n(albo `rada.py --timeout-bid 90 --timeout-exec 180 --review`)  \n\nTrzymaj **2–3 krótkie zadania** pod kamerę (jedno „rada > pewność”, jedno self-mod, ranking), resztę w off-camera. Zawsze: commit na poligonie przed exec, stoper, i skrypt/checklist z `scenariuszdemo.md` §5 (ping CLI → świeża pamięć → znany happy path).\n\n---\n\n### Szybka mapa: ryzyko → objaw → plan B\n\n| Ryzyko | Objaw w demo | Jedna mitygacja |\n|--------|----------------|-----------------|\n| CLI / quota / auth | Gemini 429, codex „czekam na zadanie”, brak ofert | Ping + billing przed startem; `--only …` + mock w rezerwie |\n| Pusty/zły wynik zwycięzcy | `pusty wynik (kod 0)`, brak recenzji | Przećwiczony hero-run; fallback `@agent` / ręczny re-exec |\n| Długi wall-clock / hang | Busy UI, minuty ciszy | `--timeout 90 --timeout-exec 180` + krótka playlista zadań |\n\n---\n\n### Podsumowanie\n\n**Przeanalizowałem** repo (rdzeń `rada.py`, web, config agentów, scenariusz demo) oraz **realny failed run** w `rada_memory/`.  \n**Nie modyfikowałem żadnych plików.**\n\nTrzy największe ryzyka live demo to: (1) zawodność zewnętrznych CLI/quota, (2) fail klimaksu na pustym/złym wyniku wykonania mimo „wygranej”, (3) zbyt długi lub wiszący pipeline przy busy-lock w UI — każde z jedną konkretną mitygacją operacyjną powyżej.",
+    "stderr": "",
+    "seconds": 48.46,
+    "error": null,
+    "returncode": 0
+  },
+  "verifier": {
+    "status": "PASS",
+    "reason": "exit code 0",
+    "stdout": "",
+    "stderr": "s_success (test_rada.Test11_DeterministicVerifier.test_nieudane_wykonanie_nie_moze_dac_final_status_success) ... ok\ntest_recenzja_modelowa_nie_nadpisuje_final_status (test_rada.Test11_DeterministicVerifier.test_recenzja_modelowa_nie_nadpisuje_final_status) ... ok\ntest_subprocess_dostaje_argv_i_shell_false (test_rada.Test11_DeterministicVerifier.test_subprocess_dostaje_argv_i_shell_false) ... ok\ntest_timeout_to_inconclusive (test_rada.Test11_DeterministicVerifier.test_timeout_to_inconclusive) ... ok\ntest_ustawienia_projektu_nie_staja_sie_agentami (test_rada.Test11_DeterministicVerifier.test_ustawienia_projektu_nie_staja_sie_agentami) ... ok\ntest_wyjscie_jest_przyciete_a_sekret_env_niedostepny (test_rada.Test11_DeterministicVerifier.test_wyjscie_jest_przyciete_a_sekret_env_niedostepny) ... ok\ntest_brak_polecenia (test_rada.Test1_Returncode.test_brak_polecenia) ... ok\ntest_kod_zero_ale_pusto_to_blad (test_rada.Test1_Returncode.test_kod_zero_ale_pusto_to_blad) ... ok\ntest_kod_zero_z_tekstem_jest_ok (test_rada.Test1_Returncode.test_kod_zero_z_tekstem_jest_ok) ... ok\ntest_niezerowy_kod_z_tekstem_to_blad (test_rada.Test1_Returncode.test_niezerowy_kod_z_tekstem_to_blad) ... ok\ntest_agent_nie_bedacy_obiektem_jest_pomijany (test_rada.Test2_LoadAgents.test_agent_nie_bedacy_obiektem_jest_pomijany) ... ok\ntest_prawdziwy_plik_rozszerzony (test_rada.Test2_LoadAgents.test_prawdziwy_plik_rozszerzony) ... ok\ntest_rozszerzony_z_rules_laduje_sie (test_rada.Test2_LoadAgents.test_rozszerzony_z_rules_laduje_sie) ... ok\ntest_czesciowy_ranking (test_rada.Test3_Borda.test_czesciowy_ranking) ... ok\ntest_duplikaty_nie_kumuluja_punktow (test_rada.Test3_Borda.test_duplikaty_nie_kumuluja_punktow) ... ok\ntest_nieznane_id_ignorowane (test_rada.Test3_Borda.test_nieznane_id_ignorowane) ... ok\ntest_normalne_glosowanie (test_rada.Test3_Borda.test_normalne_glosowanie) ... ok\ntest_brak_jsona (test_rada.Test4_JsonParser.test_brak_jsona) ... ok\ntest_escapowany_cudzyslow (test_rada.Test4_JsonParser.test_escapowany_cudzyslow) ... ok\ntest_json_otoczony_tekstem (test_rada.Test4_JsonParser.test_json_otoczony_tekstem) ... ok\ntest_otwierajaca_klamra_w_stringu (test_rada.Test4_JsonParser.test_otwierajaca_klamra_w_stringu) ... ok\ntest_zagniezdzony_obiekt (test_rada.Test4_JsonParser.test_zagniezdzony_obiekt) ... ok\ntest_zamykajaca_klamra_w_stringu (test_rada.Test4_JsonParser.test_zamykajaca_klamra_w_stringu) ... ok\ntest_recenzent_jest_wicemistrzem_glosowania (test_rada.Test5_ReviewerBorda.test_recenzent_jest_wicemistrzem_glosowania) ... ok\ntest_pokoj_raportuje_blad_zamiast_wszyscy_pass (test_rada.Test6_InterjectionErrors.test_pokoj_raportuje_blad_zamiast_wszyscy_pass) ... ok\ntest_web_oddziela_blad_od_prawdziwego_pass (test_rada.Test6_InterjectionErrors.test_web_oddziela_blad_od_prawdziwego_pass) ... ok\ntest_main_kieruje_one_shot_do_debaty (test_rada.Test7_OneShotDebate.test_main_kieruje_one_shot_do_debaty) ... ok\ntest_zapis_json_ma_routing_i_pelny_wynik (test_rada.Test8_ManualRoutingRecord.test_zapis_json_ma_routing_i_pelny_wynik) ... ok\ntest_agent_bez_bid_cmd_zwraca_rekord_bledu (test_rada.Test9_AgentFailureIsolation.test_agent_bez_bid_cmd_zwraca_rekord_bledu) ... ok\ntest_bid_cmd_jako_string_jest_pomijany_przy_load (test_rada.Test9_AgentFailureIsolation.test_bid_cmd_jako_string_jest_pomijany_przy_load) ... ok\ntest_element_nietekstowy_w_poleceniu_jest_pomijany_przy_load (test_rada.Test9_AgentFailureIsolation.test_element_nietekstowy_w_poleceniu_jest_pomijany_przy_load) ... ok\ntest_pusta_lista_polecenia_ma_czytelny_blad (test_rada.Test9_AgentFailureIsolation.test_pusta_lista_polecenia_ma_czytelny_blad) ... ok\ntest_wyjatek_jednego_future_nie_gubi_dobrego_wyniku (test_rada.Test9_AgentFailureIsolation.test_wyjatek_jednego_future_nie_gubi_dobrego_wyniku) ... ok\ntest_zly_cwd_raportuje_katalog_roboczy (test_rada.Test9_AgentFailureIsolation.test_zly_cwd_raportuje_katalog_roboczy) ... ok\n\n----------------------------------------------------------------------\nRan 40 tests in 0.438s\n\nOK\n",
+    "seconds": 0.57,
+    "returncode": 0
+  },
+  "review": {
+    "reviewer": "claude",
+    "raw": {
+      "ok": true,
+      "text": "{\"ok\": true, \"uwagi\": \"Raport jest solidny: trzy ryzyka są konkretne, poparte cytatami z kodu (rada.py:317-323) i realnym failed runem (ce8c8400f4.json), a wnioski logicznie spójne z opisanym mechanizmem (ok = rc==0 + niepusty tekst, busy-lock, timeouty 300/3600 s). Zadanie wymagało jednak JEDNEJ konkretnej mitygacji na ryzyko, a wykonawca podaje po 2-4 (ping+billing+dry-run+mock; hero-run+fallback+backup-nagranie) — to osłabia zgodność z instrukcją, choć tabela na końcu częściowo to ratuje. Warto też, by flagi CLI (--only, --no-vote, --timeout-exec) były wprost zacytowane z helpa/kodu, bo bez tego nie da się zweryfikować, że istnieją. Deklaracja braku modyfikacji plików jest obecna i wiarygodna.\"}",
+      "stderr": "",
+      "seconds": 14.12,
+      "error": null,
+      "returncode": 0
+    },
+    "parsed": {
+      "ok": true,
+      "uwagi": "Raport jest solidny: trzy ryzyka są konkretne, poparte cytatami z kodu (rada.py:317-323) i realnym failed runem (ce8c8400f4.json), a wnioski logicznie spójne z opisanym mechanizmem (ok = rc==0 + niepusty tekst, busy-lock, timeouty 300/3600 s). Zadanie wymagało jednak JEDNEJ konkretnej mitygacji na ryzyko, a wykonawca podaje po 2-4 (ping+billing+dry-run+mock; hero-run+fallback+backup-nagranie) — to osłabia zgodność z instrukcją, choć tabela na końcu częściowo to ratuje. Warto też, by flagi CLI (--only, --no-vote, --timeout-exec) były wprost zacytowane z helpa/kodu, bo bez tego nie da się zweryfikować, że istnieją. Deklaracja braku modyfikacji plików jest obecna i wiarygodna."
+    }
+  },
+  "final_status": "success"
+}
