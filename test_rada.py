@@ -629,5 +629,174 @@ class Test13_ReviewTruncation(unittest.TestCase):
         self.assertIn("Nie zgłaszaj braku dalszych sekcji", fragment)
 
 
+class Test14_Sztab(unittest.TestCase):
+    """RADA 8S: role, pakiety read-only, izolacja awarii i zgodność wsteczna."""
+
+    @staticmethod
+    def _opts(**overrides):
+        values = dict(
+            mock=True, no_vote=False, review=True, timeout_bid=2, timeout_exec=2,
+            cwd=".", verify_cmd=[sys.executable, "-c", "print('ok')"],
+            verify_timeout=10,
+        )
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def _run_in_temp_memory(self, task, agents, opts):
+        with tempfile.TemporaryDirectory() as tmp:
+            memory_dir = Path(tmp) / "rada_memory"
+            with mock.patch.object(rada, "MEMORY_DIR", memory_dir), \
+                    mock.patch.object(rada, "RUNS_DIR", memory_dir / "runs"), \
+                    mock.patch.object(rada, "JOURNAL", memory_dir / "journal.md"):
+                cichy(rada.council_run, task, agents, opts)
+                path = next((memory_dir / "runs").glob("*.json"))
+                return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_pelny_mock_zapisuje_role_pakiety_i_decyzje(self):
+        agents = {name: {"opis": ""}
+                  for name in ("claude", "codex", "gemini", "grok")}
+
+        record = self._run_in_temp_memory(
+            ":sztab zbuduj mały artefakt", agents, self._opts())
+
+        self.assertEqual(record["mode"], "sztab")
+        self.assertEqual(record["winner"], record["ranking"][0])
+        self.assertEqual(record["roles"]["lead"], record["ranking"][0])
+        self.assertEqual(record["roles"]["reviewer"], record["ranking"][1])
+        self.assertNotIn(record["roles"]["reviewer"], {
+            record["roles"]["test_strategy"], record["roles"]["ux_redteam"]})
+        self.assertTrue(record["advisories"]["test_strategy"]["delivered"])
+        self.assertTrue(record["advisories"]["ux_redteam"]["delivered"])
+        self.assertEqual(len(record["exec_prompt_sha256"]), 64)
+        self.assertEqual(set(record["package_refs_used"]), {"T1", "R1"})
+        self.assertEqual(record["final_status"], "success")
+        self.assertEqual(record["review"]["reviewer"], record["ranking"][1])
+        self.assertFalse(
+            record["review"]["independence"]["received_packages_directly"])
+
+    def test_jeden_agent_degraduje_sie_bez_doradcow_i_recenzenta(self):
+        record = self._run_in_temp_memory(
+            ":sztab zadanie jednoosobowe", {"claude": {"opis": ""}}, self._opts())
+
+        self.assertEqual(record["ranking"], ["claude"])
+        self.assertEqual(record["roles"], {
+            "lead": "claude", "reviewer": None,
+            "test_strategy": None, "ux_redteam": None,
+        })
+        self.assertEqual(record["advisories"], {})
+        self.assertEqual(record["review"]["skipped"], "brak niezależnego recenzenta")
+
+    def test_zwykla_rada_nie_dostaje_pol_sztabu(self):
+        agents = {name: {"opis": ""} for name in ("claude", "codex")}
+
+        record = self._run_in_temp_memory("zwykłe zadanie", agents, self._opts())
+
+        self.assertNotIn("mode", record)
+        self.assertNotIn("roles", record)
+        self.assertNotIn("advisories", record)
+        self.assertNotIn("exec_prompt_sha256", record)
+
+    def test_faza_advise_uzywa_bid_cmd_bez_uprawnien_do_zapisu(self):
+        completed = SimpleNamespace(returncode=0, stdout='{"role":"test_strategy"}', stderr="")
+        cfg = {
+            "bid_cmd": ["read-only-agent", "{prompt}"],
+            "exec_cmd": ["writer-agent", "{prompt}"],
+        }
+        with mock.patch.object(rada.subprocess, "run", return_value=completed) as run_mock:
+            result = rada.run_agent("x", cfg, "advise", "pakiet", "zadanie", 5, False, ".")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(run_mock.call_args.args[0][0], "read-only-agent")
+        self.assertNotIn("writer-agent", run_mock.call_args.args[0])
+
+    def test_sanityzacja_ogranicza_pakiet_i_nadaje_stabilne_id(self):
+        huge = "x" * 2000
+        package, reason = rada.sanitize_package({
+            "role": "test_strategy",
+            "risk_areas": [huge] * 20,
+            "test_cases": [{"id": "wstrzyknięcie", "cel": huge,
+                            "kroki": huge, "oczekiwane": huge}] * 20,
+            "verify_hint": huge,
+        }, "test_strategy")
+
+        self.assertIsNone(reason)
+        self.assertEqual(len(package["risk_areas"]), 5)
+        self.assertEqual(len(package["test_cases"]), 8)
+        self.assertEqual(package["test_cases"][0]["id"], "T1")
+        self.assertLessEqual(len(package["test_cases"][0]["cel"]),
+                             rada.ADVISORY_TEXT_LIMIT)
+        ux, ux_reason = rada.sanitize_package({
+            "role": "ux_redteam", "ux_notes": [huge] * 20,
+            "abuse_cases": [{"scenariusz": huge, "mitygacja": huge}] * 20,
+            "edge_inputs": [huge] * 20, "top_risk": huge,
+        }, "ux_redteam")
+        self.assertIsNone(ux_reason)
+        section = rada.build_sztab_packets({
+            "test_strategy": {"delivered": True, "parsed": package},
+            "ux_redteam": {"delivered": True, "parsed": ux},
+        })
+        self.assertLess(len(section), 8000)
+
+    def test_awaria_doradcy_nie_blokuje_i_pakiet_nie_wycieka_do_recenzji(self):
+        names = ("alpha", "beta", "gamma", "delta")
+        agents = {name: {"opis": ""} for name in names}
+
+        def result(text, ok=True, error=None):
+            return {"ok": ok, "text": text, "stderr": "", "seconds": 0,
+                    "error": error, "returncode": 0 if ok else None}
+
+        bids = {name: result(json.dumps({
+            "confidence": 90 - pos, "approach": name, "risks": "r", "effort": "S",
+        })) for pos, name in enumerate(names)}
+        votes = {name: result('{"ranking":["A","B","C","D"]}') for name in names}
+        ux = result(json.dumps({
+            "role": "ux_redteam", "ux_notes": ["UX_SECRET"],
+            "abuse_cases": [{"id": "R9", "scenariusz": "puste", "mitygacja": "waliduj"}],
+            "edge_inputs": [], "top_risk": "ryzyko",
+        }))
+
+        def parallel(_agents, phase, _prompts, *_args):
+            if phase == "bid":
+                return bids
+            if phase == "vote":
+                return votes
+            return {
+                "gamma": result("", ok=False, error="timeout"),
+                "delta": ux,
+            }
+
+        review_prompts = []
+
+        def agent(_name, _cfg, phase, prompt, *_args):
+            if phase == "exec":
+                self.assertIn("(pakiet niedostarczony)", prompt)
+                self.assertIn("UX_SECRET", prompt)
+                return result("wykonano\nSZTAB_DECISIONS: accepted=R1; rejected=none")
+            review_prompts.append(prompt)
+            return result('{"ok":true,"uwagi":"dobrze"}')
+
+        saved = []
+        order = {name: pos for pos, name in enumerate(names)}
+        with mock.patch.object(rada, "read_memory", return_value=""), \
+                mock.patch.object(rada, "stable_hash", side_effect=lambda text: next(
+                    value for name, value in order.items() if text.endswith(name))), \
+                mock.patch.object(rada, "run_parallel", side_effect=parallel), \
+                mock.patch.object(rada, "run_agent", side_effect=agent), \
+                mock.patch.object(rada, "save_run",
+                                  side_effect=lambda _run_id, record: saved.append(record)), \
+                mock.patch.object(rada, "append_memory"):
+            cichy(rada.council_run, ":sztab zadanie", agents, self._opts(mock=False))
+
+        record = saved[0]
+        self.assertEqual(record["winner"], "alpha")
+        self.assertEqual(record["roles"]["reviewer"], "beta")
+        self.assertFalse(record["advisories"]["test_strategy"]["delivered"])
+        self.assertEqual(record["advisories"]["test_strategy"]["invalid_reason"], "timeout")
+        self.assertTrue(record["advisories"]["ux_redteam"]["delivered"])
+        self.assertEqual(record["package_refs_used"], ["R1"])
+        self.assertEqual(len(review_prompts), 1)
+        self.assertNotIn("UX_SECRET", review_prompts[0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

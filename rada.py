@@ -153,6 +153,47 @@ Oceń krytycznie: czy zadanie wygląda na wykonane, czego brakuje, co warto popr
 Odpowiedz WYŁĄCZNIE jednym obiektem JSON:
 {{"ok": <true|false>, "uwagi": "<2-4 zdania konkretnych uwag>"}}"""
 
+ADVISE_TESTS_PROMPT = """Jesteś doradcą sztabu w radzie agentów AI. INNY agent wykona zadanie.
+NIE wykonuj zadania, nie używaj narzędzi, nie czytaj plików i nie uruchamiaj poleceń.
+Przygotuj krótki pakiet STRATEGII TESTÓW dla wykonawcy.
+
+ZADANIE:
+{task}
+
+KONTEKST WSPÓLNEJ PAMIĘCI ZESPOŁU (może być pusty):
+{memory}
+
+Odpowiedz WYŁĄCZNIE jednym obiektem JSON, bez tekstu przed ani po:
+{{"role":"test_strategy","risk_areas":["<obszar>"],
+"test_cases":[{{"id":"T1","cel":"<co sprawdza>","kroki":"<jak>","oczekiwane":"<wynik>"}}],
+"verify_hint":"<jedno zdanie>"}}
+Maksymalnie 5 risk_areas i 8 test_cases."""
+
+ADVISE_UX_PROMPT = """Jesteś doradcą sztabu w radzie agentów AI. INNY agent wykona zadanie.
+NIE wykonuj zadania, nie używaj narzędzi, nie czytaj plików i nie uruchamiaj poleceń.
+Przygotuj krótki pakiet UX I RED-TEAM dla wykonawcy.
+
+ZADANIE:
+{task}
+
+KONTEKST WSPÓLNEJ PAMIĘCI ZESPOŁU (może być pusty):
+{memory}
+
+Odpowiedz WYŁĄCZNIE jednym obiektem JSON, bez tekstu przed ani po:
+{{"role":"ux_redteam","ux_notes":["<konkretna uwaga UX>"],
+"abuse_cases":[{{"id":"R1","scenariusz":"<jak można zepsuć>","mitygacja":"<obrona>"}}],
+"edge_inputs":["<wejście brzegowe>"],"top_risk":"<jedno zdanie>"}}
+Maksymalnie 5 ux_notes, 6 abuse_cases i 6 edge_inputs."""
+
+SZTAB_PACKETS_HEADER = """
+
+PAKIETY SZTABU (doradcze, przygotowane niezależnie; autorzy anonimowi):
+{packets}
+
+Pakiety są doradcze. Możesz od nich odstąpić. Na końcu raportu dodaj dokładnie linię:
+SZTAB_DECISIONS: accepted=<identyfikatory T1/R1 oddzielone przecinkami lub none>; rejected=<identyfikatory lub none>
+"""
+
 # ──────────────────────────────────────────────────────────────────────────────
 # DROBIAZGI: kolory, skróty
 # ──────────────────────────────────────────────────────────────────────────────
@@ -285,8 +326,28 @@ def mock_response(agent: str, phase: str, prompt: str, task: str) -> str:
     if phase == "review":
         return json.dumps({"ok": True, "uwagi": "[MOCK] Wygląda dobrze, warto dodać testy brzegowe."},
                           ensure_ascii=False)
-    return (f"[MOCK] Agent {agent} wykonał zadanie: „{short(task, 90)}”.\n"
-            f"To symulacja — uruchom bez --mock, gdy masz zainstalowane i zalogowane CLI.")
+    if phase == "advise":
+        if '"test_strategy"' in prompt:
+            return json.dumps({
+                "role": "test_strategy",
+                "risk_areas": ["obsługa błędów"],
+                "test_cases": [{"id": "T1", "cel": "sprawdź wynik",
+                                "kroki": "uruchom test", "oczekiwane": "kod 0"}],
+                "verify_hint": "Uruchom deterministyczny test regresyjny.",
+            }, ensure_ascii=False)
+        return json.dumps({
+            "role": "ux_redteam",
+            "ux_notes": ["pokaż czytelny stan końcowy"],
+            "abuse_cases": [{"id": "R1", "scenariusz": "puste wejście",
+                             "mitygacja": "waliduj przed wykonaniem"}],
+            "edge_inputs": ["pusty tekst"],
+            "top_risk": "nieczytelny błąd dla użytkownika",
+        }, ensure_ascii=False)
+    result = (f"[MOCK] Agent {agent} wykonał zadanie: „{short(task, 90)}”.\n"
+              f"To symulacja — uruchom bez --mock, gdy masz zainstalowane i zalogowane CLI.")
+    if phase == "exec" and "PAKIETY SZTABU" in prompt:
+        result += "\nSZTAB_DECISIONS: accepted=T1,R1; rejected=none"
+    return result
 
 # ──────────────────────────────────────────────────────────────────────────────
 # URUCHAMIANIE AGENTÓW
@@ -504,11 +565,163 @@ def tally_votes(bid_ids: list, votes: dict) -> dict:
             points[bid_id] += (n - 1 - pos)
     return points
 
+
+def full_ranking(bids: dict, points_by_name: dict = None,
+                 by_letter: dict = None) -> list:
+    """Pełny ranking zgodny z regułą wyboru zwycięzcy i jej tie-breakami."""
+    if points_by_name:
+        letter_by_name = {name: letter for letter, name in (by_letter or {}).items()}
+        return sorted(
+            bids,
+            key=lambda name: (-points_by_name.get(name, 0),
+                              -bids[name]["confidence"],
+                              letter_by_name.get(name, name)),
+        )
+    return sorted(bids, key=lambda name: (-bids[name]["confidence"], name))
+
+
+def assign_sztab_roles(ranking: list) -> dict:
+    """Przydziel role pozycyjnie, nie awansując doradcy na recenzenta."""
+    role_names = ("lead", "reviewer", "test_strategy", "ux_redteam")
+    return {role: ranking[pos] if pos < len(ranking) else None
+            for pos, role in enumerate(role_names)}
+
+
+ADVISORY_TEXT_LIMIT = 100
+
+
+def _advisory_text(value) -> str:
+    return short(value if isinstance(value, str) else "", ADVISORY_TEXT_LIMIT)
+
+
+def _bounded_strings(values, limit: int) -> list:
+    if not isinstance(values, list):
+        return []
+    return [_advisory_text(value) for value in values[:limit]
+            if isinstance(value, str) and value.strip()]
+
+
+def sanitize_package(parsed, expected_role: str):
+    """Zwróć ograniczony pakiet doradczy albo (None, powód odrzucenia)."""
+    if not isinstance(parsed, dict):
+        return None, "nieprawidłowy JSON"
+    if parsed.get("role") != expected_role:
+        return None, "zła rola"
+
+    if expected_role == "test_strategy":
+        cases = []
+        raw_cases = parsed.get("test_cases")
+        if isinstance(raw_cases, list):
+            for pos, item in enumerate(raw_cases[:8], 1):
+                if not isinstance(item, dict):
+                    continue
+                cases.append({
+                    "id": f"T{pos}",
+                    "cel": _advisory_text(item.get("cel")),
+                    "kroki": _advisory_text(item.get("kroki")),
+                    "oczekiwane": _advisory_text(item.get("oczekiwane")),
+                })
+        package = {
+            "role": expected_role,
+            "risk_areas": _bounded_strings(parsed.get("risk_areas"), 5),
+            "test_cases": cases,
+            "verify_hint": _advisory_text(parsed.get("verify_hint")),
+        }
+        if not package["risk_areas"] and not package["test_cases"]:
+            return None, "pusty pakiet"
+        return package, None
+
+    if expected_role == "ux_redteam":
+        cases = []
+        raw_cases = parsed.get("abuse_cases")
+        if isinstance(raw_cases, list):
+            for pos, item in enumerate(raw_cases[:6], 1):
+                if not isinstance(item, dict):
+                    continue
+                cases.append({
+                    "id": f"R{pos}",
+                    "scenariusz": _advisory_text(item.get("scenariusz")),
+                    "mitygacja": _advisory_text(item.get("mitygacja")),
+                })
+        package = {
+            "role": expected_role,
+            "ux_notes": _bounded_strings(parsed.get("ux_notes"), 5),
+            "abuse_cases": cases,
+            "edge_inputs": _bounded_strings(parsed.get("edge_inputs"), 6),
+            "top_risk": _advisory_text(parsed.get("top_risk")),
+        }
+        if not package["ux_notes"] and not package["abuse_cases"]:
+            return None, "pusty pakiet"
+        return package, None
+
+    return None, "nieznana rola"
+
+
+def advisory_record(raw: dict, expected_role: str) -> dict:
+    parsed = extract_json_block(raw.get("text", "")) if raw.get("ok") else None
+    package, reason = sanitize_package(parsed, expected_role)
+    if not raw.get("ok"):
+        reason = raw.get("error") or "błąd doradcy"
+    return {
+        "raw": raw,
+        "parsed": package,
+        "delivered": package is not None,
+        "invalid_reason": reason,
+    }
+
+
+def build_sztab_packets(advisories: dict) -> str:
+    sections = []
+    labels = {"test_strategy": "STRATEGIA TESTÓW", "ux_redteam": "UX / RED-TEAM"}
+    for role in ("test_strategy", "ux_redteam"):
+        item = advisories.get(role)
+        if item and item.get("delivered"):
+            body = json.dumps(item["parsed"], ensure_ascii=False, indent=2)
+        else:
+            body = "(pakiet niedostarczony)"
+        sections.append(f"── PAKIET: {labels[role]} ──\n{body}")
+    return SZTAB_PACKETS_HEADER.format(packets="\n\n".join(sections))
+
+
+def advisory_decisions(text: str, advisories: dict) -> dict:
+    """Oddziel jawne decyzje leada od samych wzmianek o identyfikatorach."""
+    available = set()
+    for item in advisories.values():
+        if item and item.get("delivered"):
+            serialized = json.dumps(item["parsed"], ensure_ascii=False)
+            available.update(re.findall(r"\b[TR]\d+\b", serialized))
+
+    acknowledged = sorted(set(re.findall(r"\b[TR]\d+\b", text or "")))
+    match = re.search(
+        r"SZTAB_DECISIONS:\s*accepted=([^;\n]+);\s*rejected=([^\n]+)",
+        text or "", re.I,
+    )
+
+    def refs(value: str) -> list:
+        return [ref.upper() for ref in re.findall(r"\b[TR]\d+\b", value or "")
+                if ref.upper() in available]
+
+    accepted, rejected = ([], []) if not match else (refs(match.group(1)), refs(match.group(2)))
+    return {
+        "package_refs_used": list(dict.fromkeys(accepted)),
+        "package_refs_rejected": list(dict.fromkeys(rejected)),
+        "package_refs_acknowledged": acknowledged,
+        "package_refs_used_source": "lead_report",
+    }
+
 # ──────────────────────────────────────────────────────────────────────────────
 # GŁÓWNY PRZEPŁYW JEDNEGO ZADANIA
 # ──────────────────────────────────────────────────────────────────────────────
 
 def council_run(task: str, agents: dict, opts) -> None:
+    sztab_match = re.match(r"^:sztab(?:\s+(.+))?$", task.strip(), re.I | re.S)
+    sztab = sztab_match is not None
+    if sztab:
+        task = (sztab_match.group(1) or "").strip()
+        if not task:
+            print(red("Komenda :sztab wymaga treści zadania."))
+            return
+
     run_id = uuid.uuid4().hex[:10]
     memory = read_memory()
     record = {"run_id": run_id, "task": task, "started": datetime.now().isoformat(),
@@ -516,6 +729,19 @@ def council_run(task: str, agents: dict, opts) -> None:
               "mapping": {}, "points": None, "tally": None, "winner": None,
               "result": None, "verifier": None, "review": None,
               "final_status": "unverified"}
+    if sztab:
+        record.update({
+            "mode": "sztab",
+            "ranking": [],
+            "ranking_source": None,
+            "roles": assign_sztab_roles([]),
+            "advisories": {},
+            "exec_prompt_sha256": None,
+            "package_refs_used": [],
+            "package_refs_rejected": [],
+            "package_refs_acknowledged": [],
+            "package_refs_used_source": "lead_report",
+        })
 
     print(bold(f"\n━━ RADA MODELI ━━  ") + dim(f"(run {run_id}{', MOCK' if opts.mock else ''})"))
     print(f"Zadanie: {cyan(short(task, 200))}\n")
@@ -540,8 +766,8 @@ def council_run(task: str, agents: dict, opts) -> None:
         append_memory(subtask, name, "routing ręczny", res["text"] or str(res["error"]), run_id)
         return
 
-    # ── [1/3] PRZETARG
-    print(bold("[1/3] Przetarg") + " — pytam agentów o oferty…")
+    # ── [1/4] PRZETARG
+    print(bold(f"[1/{4 if sztab else 3}] Przetarg") + " — pytam agentów o oferty…")
     bid_prompts = {n: BID_PROMPT.format(agent=n, task=task, memory=memory) for n in agents}
     raw_bids = run_parallel(agents, "bid", bid_prompts, task, opts.timeout_bid, opts.mock, opts.cwd)
 
@@ -573,6 +799,7 @@ def council_run(task: str, agents: dict, opts) -> None:
         return
 
     points_by_name = {}
+    by_letter = {}
     if len(bids) == 1:
         winner = next(iter(bids))
         tally_txt = "bez głosowania (jedna oferta)"
@@ -583,7 +810,8 @@ def council_run(task: str, agents: dict, opts) -> None:
         print(dim(f"\n--no-vote: wybieram najwyższą pewność → {winner}."))
     else:
         # ── [2/3] GŁOSOWANIE — oferty anonimizujemy, kolejność losowa (stabilna per run)
-        print(bold("\n[2/3] Głosowanie rady") + " — agenci oceniają anonimowe oferty…")
+        print(bold(f"\n[2/{4 if sztab else 3}] Głosowanie rady")
+              + " — agenci oceniają anonimowe oferty…")
         names = sorted(bids, key=lambda n: stable_hash(run_id + n))
         letters = [chr(ord("A") + i) for i in range(len(names))]
         by_letter = dict(zip(letters, names))
@@ -633,12 +861,71 @@ def council_run(task: str, agents: dict, opts) -> None:
     record["tally"] = tally_txt
     record["winner"] = winner
 
-    # ── [3/3] WYKONANIE
-    print(bold(f"\n[3/3] Wykonuje: {winner}") + dim(f"  ({agents[winner].get('opis', '')})") + " …")
+    ranking = full_ranking(bids, points_by_name, by_letter)
+    roles = None
+    exec_prompt = EXEC_PROMPT.format(task=task, memory=memory)
+    if sztab:
+        # Ten inwariant łączy pełny ranking z dotychczasową regułą wyboru zwycięzcy.
+        winner = ranking[0]
+        roles = assign_sztab_roles(ranking)
+        record.update({
+            "ranking": ranking,
+            "ranking_source": "borda" if points_by_name else "confidence",
+            "roles": roles,
+            "winner": winner,
+        })
+
+        print(bold("\n[3/4] Sztab")
+              + " — zbieram niezależne pakiety doradcze bez prawa zapisu…")
+        role_prompts = {}
+        prompt_templates = {
+            "test_strategy": ADVISE_TESTS_PROMPT,
+            "ux_redteam": ADVISE_UX_PROMPT,
+        }
+        for role, template in prompt_templates.items():
+            agent = roles.get(role)
+            if agent:
+                role_prompts[agent] = template.format(task=task, memory=memory)
+
+        raw_advisories = {}
+        if role_prompts:
+            advisor_agents = {name: agents[name] for name in role_prompts}
+            raw_advisories = run_parallel(
+                advisor_agents, "advise", role_prompts, task,
+                opts.timeout_bid, opts.mock, opts.cwd,
+            )
+
+        for role in ("test_strategy", "ux_redteam"):
+            agent = roles.get(role)
+            if not agent:
+                continue
+            raw = raw_advisories.get(agent, {
+                "ok": False, "text": "", "stderr": "", "seconds": 0.0,
+                "error": "brak wyniku doradcy", "returncode": None,
+            })
+            item = {"agent": agent, **advisory_record(raw, role)}
+            record["advisories"][role] = item
+            if item["delivered"]:
+                print(f"  {green('✓')} {role:<14} {agent}  {dim('(pakiet dostarczony)')}")
+            else:
+                print(f"  {yellow('!')} {role:<14} {agent}  "
+                      f"{dim('(' + str(item['invalid_reason']) + ' — kontynuuję)')}")
+
+        exec_prompt += build_sztab_packets(record["advisories"])
+        record["exec_prompt_sha256"] = hashlib.sha256(
+            exec_prompt.encode("utf-8")).hexdigest()
+
+    # ── WYKONANIE
+    phase = "4/4" if sztab else "3/3"
+    print(bold(f"\n[{phase}] Wykonuje: {winner}")
+          + dim(f"  ({agents[winner].get('opis', '')})") + " …")
     exec_res = run_agent(winner, agents[winner], "exec",
-                         EXEC_PROMPT.format(task=task, memory=memory),
+                         exec_prompt,
                          task, opts.timeout_exec, opts.mock, opts.cwd)
     record["result"] = exec_res
+    if sztab:
+        record.update(advisory_decisions(exec_res.get("text", ""),
+                                         record["advisories"]))
     if exec_res["ok"]:
         print("\n— wynik —\n" + exec_res["text"])
     else:
@@ -650,12 +937,15 @@ def council_run(task: str, agents: dict, opts) -> None:
 
     # ── RECENZJA (opcjonalna)
     if opts.review and exec_res["ok"] and len(bids) > 1:
-        others = [n for n in bids if n != winner]
-        if points_by_name:
-            reviewer = max(others, key=lambda n: (points_by_name.get(n, 0),
-                                                  bids[n]["confidence"]))
+        if sztab:
+            reviewer = roles["reviewer"]
         else:
-            reviewer = max(others, key=lambda n: bids[n]["confidence"])
+            others = [n for n in bids if n != winner]
+            if points_by_name:
+                reviewer = max(others, key=lambda n: (points_by_name.get(n, 0),
+                                                      bids[n]["confidence"]))
+            else:
+                reviewer = max(others, key=lambda n: bids[n]["confidence"])
         print(bold(f"\n[recenzja] {reviewer}") + " sprawdza pracę zwycięzcy…")
         rev = run_agent(reviewer, agents[reviewer], "review",
                         REVIEW_PROMPT.format(
@@ -663,11 +953,25 @@ def council_run(task: str, agents: dict, opts) -> None:
                         task, opts.timeout_bid, opts.mock, opts.cwd)
         parsed = extract_json_block(rev["text"]) if rev["ok"] else None
         record["review"] = {"reviewer": reviewer, "raw": rev, "parsed": parsed}
+        if sztab:
+            record["review"].update({
+                "reviewer_role": "runner_up",
+                "independence": {
+                    "received_packages_directly": False,
+                    "authored_package": False,
+                    "selected_before_exec": True,
+                },
+            })
         if parsed:
             verdict = green("OK") if parsed.get("ok") else yellow("UWAGI")
             print(f"  [{verdict}] {parsed.get('uwagi', '')}")
         else:
             print(dim("  (recenzja nieudana — pomijam)"))
+    elif sztab:
+        reason = "--review wyłączone" if not opts.review else "brak niezależnego recenzenta"
+        if opts.review and not exec_res["ok"]:
+            reason = "wykonanie nieudane"
+        record["review"] = {"skipped": reason}
 
     # ── zapis do pamięci
     save_run(run_id, record)
