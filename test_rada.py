@@ -615,5 +615,19 @@ class Test12_VoteAuditTrail(unittest.TestCase):
         self.assertIsNone(record["points"])
 
 
+class Test13_ReviewTruncation(unittest.TestCase):
+    """Recenzent musi wiedzieć, czy otrzymał tylko początek raportu."""
+
+    def test_marker_tylko_dla_ucietego_raportu(self):
+        krotki = "krótki raport"
+        dlugi = "x" * 6001
+
+        self.assertEqual(rada.review_excerpt(krotki), krotki)
+        fragment = rada.review_excerpt(dlugi)
+        self.assertTrue(fragment.startswith("x" * 6000))
+        self.assertIn("pierwsze 6000 z 6001 znaków", fragment)
+        self.assertIn("Nie zgłaszaj braku dalszych sekcji", fragment)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
