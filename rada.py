@@ -496,8 +496,9 @@ def council_run(task: str, agents: dict, opts) -> None:
     memory = read_memory()
     record = {"run_id": run_id, "task": task, "started": datetime.now().isoformat(),
               "mock": opts.mock, "routing": "przetarg", "bids": {}, "votes": {},
-              "tally": None, "winner": None, "result": None,
-              "verifier": None, "review": None, "final_status": "unverified"}
+              "mapping": {}, "points": None, "tally": None, "winner": None,
+              "result": None, "verifier": None, "review": None,
+              "final_status": "unverified"}
 
     print(bold(f"\n━━ RADA MODELI ━━  ") + dim(f"(run {run_id}{', MOCK' if opts.mock else ''})"))
     print(f"Zadanie: {cyan(short(task, 200))}\n")
@@ -569,6 +570,8 @@ def council_run(task: str, agents: dict, opts) -> None:
         names = sorted(bids, key=lambda n: stable_hash(run_id + n))
         letters = [chr(ord("A") + i) for i in range(len(names))]
         by_letter = dict(zip(letters, names))
+        # Audyt: bez tej mapy zapisany run nie pozwala odtworzyć, kim byli [A]/[B]/…
+        record["mapping"] = by_letter
         bids_block = "\n".join(
             f"[{ltr}] pewność: {bids[nm]['confidence']}/100 | nakład: {bids[nm].get('effort', '?')} | "
             f"plan: {short(bids[nm].get('approach', '—'), 220)} | "
@@ -601,6 +604,7 @@ def council_run(task: str, agents: dict, opts) -> None:
             top.sort(key=lambda l: (-bids[by_letter[l]]["confidence"], l))
             winner = by_letter[top[0]]
             points_by_name = {by_letter[l]: p for l, p in points.items()}
+            record["points"] = points_by_name
             tally_txt = ", ".join(f"{n} {p} pkt" for n, p in
                                   sorted(points_by_name.items(), key=lambda kv: -kv[1]))
             print(f"\n  Wynik głosowania: {tally_txt}")
