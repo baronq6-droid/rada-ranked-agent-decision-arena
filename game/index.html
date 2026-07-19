@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEFARIN: Core Defense</title>
+<style>
+  :root {
+    --bg: #06080f;
+    --panel: rgba(10, 16, 30, 0.85);
+    --accent: #4de3ff;
+    --accent2: #ff5c7a;
+    --text: #d7e6ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: "Segoe UI", Consolas, monospace;
+    color: var(--text);
+  }
+  #wrap { position: relative; width: 100vw; height: 100vh; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #hud {
+    position: absolute; top: 12px; left: 14px;
+    background: var(--panel);
+    border: 1px solid rgba(77, 227, 255, 0.35);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    pointer-events: none;
+    user-select: none;
+  }
+  #hud b { color: var(--accent); }
+  #hud .hp b { color: var(--accent2); }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(4, 6, 12, 0.82);
+    text-align: center;
+    z-index: 5;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 {
+    font-size: 44px;
+    letter-spacing: 6px;
+    color: var(--accent);
+    text-shadow: 0 0 24px rgba(77, 227, 255, 0.6);
+    margin-bottom: 8px;
+  }
+  #overlay h2 { font-size: 20px; font-weight: normal; margin-bottom: 18px; color: #8fb3d9; }
+  #overlay .stats { font-size: 17px; margin-bottom: 20px; line-height: 1.8; }
+  #overlay .stats b { color: var(--accent); }
+  #overlay button {
+    font-family: inherit;
+    font-size: 18px;
+    letter-spacing: 2px;
+    padding: 12px 34px;
+    background: transparent;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #overlay button:hover { background: var(--accent); color: #04121a; }
+  #overlay .hint { margin-top: 16px; font-size: 13px; color: #6c86a8; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div>Wynik: <b id="score">0</b></div>
+    <div>Fala: <b id="wave">1</b></div>
+    <div class="hp">Rdzeń: <b id="hp">100</b>%</div>
+  </div>
+  <div id="overlay">
+    <h1>NEFARIN</h1>
+    <h2>CORE DEFENSE</h2>
+    <div class="stats" id="finalStats">
+      Broń rdzenia NEFARIN przed falami wrogów.<br>
+      Celuj myszą, strzelaj klikiem lub przytrzymaniem.
+    </div>
+    <button id="startBtn">START</button>
+    <div class="hint">Mysz — celowanie &middot; LPM / spacja — ogień</div>
+  </div>
+</div>
+<script>
+"use strict";
+(function () {
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const hudScore = document.getElementById("score");
+  const hudWave = document.getElementById("wave");
+  const hudHp = document.getElementById("hp");
+  const overlay = document.getElementById("overlay");
+  const finalStats = document.getElementById("finalStats");
+  const startBtn = document.getElementById("startBtn");
+
+  let W = 0, H = 0, CX = 0, CY = 0;
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    CX = W / 2;
+    CY = H / 2;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  const CORE_RADIUS = 34;
+  const TURRET_LEN = 30;
+
+  const state = {
+    running: false,
+    score: 0,
+    wave: 1,
+    coreHp: 100,
+    aimX: 0, aimY: -1,
+    firing: false,
+    fireCooldown: 0,
+    enemies: [],
+    bullets: [],
+    particles: [],
+    stars: [],
+    waveQueue: 0,
+    spawnTimer: 0,
+    waveBreak: 0,
+    time: 0
+  };
+
+  function makeStars() {
+    state.stars = [];
+    for (let i = 0; i < 120; i++) {
+      state.stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.4 + 0.3,
+        a: Math.random() * 0.6 + 0.2
+      });
+    }
+  }
+  makeStars();
+
+  function reset() {
+    state.score = 0;
+    state.wave = 1;
+    state.coreHp = 100;
+    state.enemies = [];
+    state.bullets = [];
+    state.particles = [];
+    state.fireCooldown = 0;
+    state.waveBreak = 0;
+    state.time = 0;
+    startWave();
+    updateHud();
+  }
+
+  function startWave() {
+    state.waveQueue = 5 + state.wave * 3;
+    state.spawnTimer = 0;
+  }
+
+  function spawnEnemy() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.max(W, H) * 0.65;
+    const x = CX + Math.cos(angle) * dist;
+    const y = CY + Math.sin(angle) * dist;
+    const wave = state.wave;
+    let type = "drone";
+    const roll = Math.random();
+    if (wave >= 3 && roll < 0.18) type = "tank";
+    else if (wave >= 2 && roll < 0.45) type = "runner";
+    const def = {
+      drone:  { r: 12, hp: 1,  speed: 42 + wave * 4,  dmg: 8,  pts: 10, color: "#ff5c7a" },
+      runner: { r: 9,  hp: 1,  speed: 80 + wave * 6,  dmg: 5,  pts: 15, color: "#ffb84d" },
+      tank:   { r: 20, hp: 4 + Math.floor(wave / 3), speed: 26 + wave * 2, dmg: 20, pts: 40, color: "#b06bff" }
+    }[type];
+    state.enemies.push({
+      x, y, type,
+      r: def.r, hp: def.hp, maxHp: def.hp,
+      speed: def.speed, dmg: def.dmg, pts: def.pts,
+      color: def.color,
+      wobble: Math.random() * Math.PI * 2
+    });
+  }
+
+  function fire() {
+    const dx = state.aimX, dy = state.aimY;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = dx / len, ny = dy / len;
+    const spread = (Math.random() - 0.5) * 0.06;
+    const cos = Math.cos(spread), sin = Math.sin(spread);
+    const vx = nx * cos - ny * sin, vy = nx * sin + ny * cos;
+    state.bullets.push({
+      x: CX + vx * (CORE_RADIUS + TURRET_LEN),
+      y: CY + vy * (CORE_RADIUS + TURRET_LEN),
+      vx: vx * 520, vy: vy * 520,
+      life: 2
+    });
+  }
+
+  function burst(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 40 + Math.random() * 160;
+      state.particles.push({
+        x, y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: 0.4 + Math.random() * 0.4,
+        maxLife: 0.8,
+        color
+      });
+    }
+  }
+
+  function updateHud() {
+    hudScore.textContent = state.score;
+    hudWave.textContent = state.wave;
+    hudHp.textContent = Math.max(0, Math.ceil(state.coreHp));
+  }
+
+  function gameOver() {
+    state.running = false;
+    finalStats.innerHTML =
+      "Rdzeń NEFARIN zniszczony.<br>" +
+      "Wynik: <b>" + state.score + "</b> &middot; Osiągnięta fala: <b>" + state.wave + "</b>";
+    startBtn.textContent = "RESTART";
+    overlay.classList.remove("hidden");
+  }
+
+  function update(dt) {
+    state.time += dt;
+
+    // spawning
+    if (state.waveQueue > 0) {
+      state.spawnTimer -= dt;
+      if (state.spawnTimer <= 0) {
+        spawnEnemy();
+        state.waveQueue--;
+        state.spawnTimer = Math.max(0.25, 1.1 - state.wave * 0.06);
+      }
+    } else if (state.enemies.length === 0) {
+      state.waveBreak += dt;
+      if (state.waveBreak > 2) {
+        state.waveBreak = 0;
+        state.wave++;
+        state.score += 50;
+        startWave();
+        updateHud();
+      }
+    }
+
+    // firing
+    state.fireCooldown -= dt;
+    if (state.firing && state.fireCooldown <= 0) {
+      fire();
+      state.fireCooldown = 0.14;
+    }
+
+    // bullets
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+      const b = state.bullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if (b.life <= 0 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) {
+        state.bullets.splice(i, 1);
+      }
+    }
+
+    // enemies
+    for (let i = state.enemies.length - 1; i >= 0; i--) {
+      const e = state.enemies[i];
+      const dx = CX - e.x, dy = CY - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      e.wobble += dt * 4;
+      const wob = e.type === "runner" ? Math.sin(e.wobble) * 30 : 0;
+      const px = -dy / d, py = dx / d;
+      e.x += (dx / d) * e.speed * dt + px * wob * dt;
+      e.y += (dy / d) * e.speed * dt + py * wob * dt;
+
+      // hit core
+      if (d < CORE_RADIUS + e.r) {
+        state.coreHp -= e.dmg;
+        burst(e.x, e.y, "#ff5c7a", 18);
+        state.enemies.splice(i, 1);
+        updateHud();
+        if (state.coreHp <= 0) { gameOver(); return; }
+        continue;
+      }
+
+      // bullet collisions
+      for (let j = state.bullets.length - 1; j >= 0; j--) {
+        const b = state.bullets[j];
+        if (Math.hypot(b.x - e.x, b.y - e.y) < e.r + 4) {
+          state.bullets.splice(j, 1);
+          e.hp--;
+          if (e.hp <= 0) {
+            state.score += e.pts;
+            burst(e.x, e.y, e.color, 14);
+            state.enemies.splice(i, 1);
+            updateHud();
+          } else {
+            burst(b.x, b.y, "#ffffff", 4);
+          }
+          break;
+        }
+      }
+    }
+
+    // particles
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const p = state.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.life -= dt;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+  }
+
+  function draw() {
+    ctx.fillStyle = "#06080f";
+    ctx.fillRect(0, 0, W, H);
+
+    // stars
+    for (const s of state.stars) {
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = "#9fc4ff";
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+    ctx.globalAlpha = 1;
+
+    // core danger ring
+    const hpFrac = Math.max(0, state.coreHp) / 100;
+    ctx.beginPath();
+    ctx.arc(CX, CY, CORE_RADIUS + 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpFrac);
+    ctx.strokeStyle = hpFrac > 0.35 ? "#4de3ff" : "#ff5c7a";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // core
+    const pulse = 1 + Math.sin(state.time * 3) * 0.05;
+    const grad = ctx.createRadialGradient(CX, CY, 4, CX, CY, CORE_RADIUS * pulse);
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.35, "#4de3ff");
+    grad.addColorStop(1, "#0a2a4a");
+    ctx.beginPath();
+    ctx.arc(CX, CY, CORE_RADIUS * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // turret
+    const len = Math.hypot(state.aimX, state.aimY) || 1;
+    const nx = state.aimX / len, ny = state.aimY / len;
+    ctx.strokeStyle = "#d7e6ff";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(CX + nx * CORE_RADIUS, CY + ny * CORE_RADIUS);
+    ctx.lineTo(CX + nx * (CORE_RADIUS + TURRET_LEN), CY + ny * (CORE_RADIUS + TURRET_LEN));
+    ctx.stroke();
+
+    // bullets
+    ctx.fillStyle = "#ffe97a";
+    for (const b of state.bullets) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // enemies
+    for (const e of state.enemies) {
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.fillStyle = e.color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (e.maxHp > 1) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2, 4);
+        ctx.fillStyle = "#7dff9b";
+        ctx.fillRect(e.x - e.r, e.y - e.r - 8, e.r * 2 * (e.hp / e.maxHp), 4);
+      }
+    }
+
+    // particles
+    for (const p of state.particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+
+    // wave break banner
+    if (state.waveQueue === 0 && state.enemies.length === 0 && state.running) {
+      ctx.fillStyle = "#4de3ff";
+      ctx.font = "22px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Fala " + (state.wave + 1) + " nadchodzi...", CX, CY - CORE_RADIUS - 40);
+    }
+  }
+
+  let last = 0;
+  function loop(ts) {
+    const dt = Math.min(0.05, (ts - last) / 1000 || 0);
+    last = ts;
+    if (state.running) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // input
+  canvas.addEventListener("mousemove", (e) => {
+    state.aimX = e.clientX - CX;
+    state.aimY = e.clientY - CY;
+  });
+  canvas.addEventListener("mousedown", () => { state.firing = true; });
+  window.addEventListener("mouseup", () => { state.firing = false; });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") { state.firing = true; e.preventDefault(); }
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "Space") state.firing = false;
+  });
+  window.addEventListener("blur", () => { state.firing = false; });
+
+  startBtn.addEventListener("click", () => {
+    overlay.classList.add("hidden");
+    reset();
+    state.running = true;
+  });
+})();
+</script>
+</body>
+</html>
