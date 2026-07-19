@@ -174,6 +174,23 @@ def short(txt: str, n: int = 110) -> str:
     txt = " ".join(str(txt).split())
     return txt if len(txt) <= n else txt[: n - 1] + "…"
 
+
+REVIEW_REPORT_LIMIT = 6000
+
+
+def review_excerpt(txt: str, limit: int = REVIEW_REPORT_LIMIT) -> str:
+    """Przytnij raport jawnie, aby recenzent znał granice otrzymanego materiału."""
+    txt = str(txt or "")
+    if len(txt) <= limit:
+        return txt
+    return (
+        txt[:limit]
+        + "\n\n[SYSTEM: raport ucięty do recenzji — widzisz pierwsze "
+        + f"{limit} z {len(txt)} znaków. Nie zgłaszaj braku dalszych sekcji "
+        + "jako błędu wykonawcy.]"
+    )
+
+
 def stable_hash(s: str) -> int:
     return int(hashlib.md5(s.encode("utf-8")).hexdigest(), 16)
 
@@ -641,7 +658,8 @@ def council_run(task: str, agents: dict, opts) -> None:
             reviewer = max(others, key=lambda n: bids[n]["confidence"])
         print(bold(f"\n[recenzja] {reviewer}") + " sprawdza pracę zwycięzcy…")
         rev = run_agent(reviewer, agents[reviewer], "review",
-                        REVIEW_PROMPT.format(task=task, result=exec_res["text"][:6000]),
+                        REVIEW_PROMPT.format(
+                            task=task, result=review_excerpt(exec_res["text"])),
                         task, opts.timeout_bid, opts.mock, opts.cwd)
         parsed = extract_json_block(rev["text"]) if rev["ok"] else None
         record["review"] = {"reviewer": reviewer, "raw": rev, "parsed": parsed}

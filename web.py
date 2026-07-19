@@ -296,7 +296,8 @@ def process_rada(task: str):
             reviewer = max(others, key=lambda n: bids[n]["confidence"])
         set_status(f"rada: recenzja ({reviewer})…")
         rr = rada.run_agent(reviewer, agents[reviewer], "review",
-                            rada.REVIEW_PROMPT.format(task=task, result=er["text"][:6000]),
+                            rada.REVIEW_PROMPT.format(
+                                task=task, result=rada.review_excerpt(er["text"])),
                             task, opts.timeout, opts.mock, ".")
         pr = rada.extract_json_block(rr["text"]) if rr["ok"] else None
         record["review"] = {"reviewer": reviewer, "raw": rr, "parsed": pr}
