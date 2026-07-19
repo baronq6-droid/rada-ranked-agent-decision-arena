@@ -539,5 +539,81 @@ class Test11_DeterministicVerifier(unittest.TestCase):
         self.assertEqual(saved[0]["final_status"], "unverified")
 
 
+class Test12_VoteAuditTrail(unittest.TestCase):
+    """Audyt głosowania: zapis runu ma zawierać mapę anonimizacji i punkty Bordy,
+    tak by zwycięzcę dało się niezależnie przeliczyć z samego pliku JSON."""
+
+    def _uruchom_rade(self):
+        agents = {n: {"opis": ""} for n in ("alpha", "beta", "gamma")}
+
+        def wynik(text):
+            return {"ok": True, "text": text, "stderr": "", "seconds": 0,
+                    "error": None, "returncode": 0}
+
+        bids = {
+            "alpha": wynik('{"confidence": 100, "approach": "A"}'),
+            "beta": wynik('{"confidence": 10, "approach": "B"}'),
+            "gamma": wynik('{"confidence": 20, "approach": "C"}'),
+        }
+        votes = {n: wynik('{"ranking": ["C", "B", "A"]}') for n in agents}
+
+        def run_parallel(_agents, phase, _prompts, _task, _timeout, _mock, _cwd):
+            return bids if phase == "bid" else votes
+
+        saved = []
+        opts = SimpleNamespace(mock=True, no_vote=False, review=False,
+                               timeout_bid=1, timeout_exec=1, cwd=".",
+                               verify_cmd=None, verify_timeout=10)
+        order = {"alpha": 0, "beta": 1, "gamma": 2}
+
+        with mock.patch.object(rada, "read_memory", return_value=""), \
+                mock.patch.object(rada, "stable_hash", side_effect=lambda text: next(
+                    value for name, value in order.items() if text.endswith(name))), \
+                mock.patch.object(rada, "run_parallel", side_effect=run_parallel), \
+                mock.patch.object(rada, "run_agent", return_value=wynik("wykonane")), \
+                mock.patch.object(rada, "save_run",
+                                  side_effect=lambda _run_id, record: saved.append(record)), \
+                mock.patch.object(rada, "append_memory"):
+            cichy(rada.council_run, "zadanie", agents, opts)
+        return saved[0]
+
+    def test_zapis_zawiera_mape_anonimizacji_i_punkty(self):
+        record = self._uruchom_rade()
+        self.assertEqual(record["mapping"], {"A": "alpha", "B": "beta", "C": "gamma"})
+        self.assertEqual(record["points"], {"alpha": 0, "beta": 3, "gamma": 6})
+
+    def test_zwyciezce_da_sie_przeliczyc_z_samego_zapisu(self):
+        # Symulujemy audytora: dostaje wyłącznie JSON runu (po serializacji)
+        # i musi odtworzyć wynik głosowania z surowych głosów + mapy.
+        record = json.loads(json.dumps(self._uruchom_rade(), ensure_ascii=False))
+
+        mapping = record["mapping"]
+        letters = sorted(mapping)
+        rankings = {}
+        for juror, res in record["votes"].items():
+            parsed = rada.extract_json_block(res["text"])
+            rankings[juror] = [str(r).strip().upper() for r in parsed["ranking"]]
+
+        przeliczone = {mapping[l]: p
+                       for l, p in rada.tally_votes(letters, rankings).items()}
+        self.assertEqual(przeliczone, record["points"])
+        self.assertEqual(max(przeliczone, key=przeliczone.get), record["winner"])
+
+    def test_reczny_routing_nie_udaje_glosowania(self):
+        opts = SimpleNamespace(mock=True, timeout_exec=1, cwd=".",
+                               verify_cmd=None, verify_timeout=10)
+        with tempfile.TemporaryDirectory() as tmp:
+            memory_dir = Path(tmp) / "rada_memory"
+            runs_dir = memory_dir / "runs"
+            with mock.patch.object(rada, "MEMORY_DIR", memory_dir), \
+                    mock.patch.object(rada, "RUNS_DIR", runs_dir), \
+                    mock.patch.object(rada, "JOURNAL", memory_dir / "journal.md"):
+                cichy(rada.council_run, "@codex zrób test", {"codex": {}}, opts)
+            record = json.loads(
+                next(runs_dir.glob("*.json")).read_text(encoding="utf-8"))
+        self.assertEqual(record["mapping"], {})
+        self.assertIsNone(record["points"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
