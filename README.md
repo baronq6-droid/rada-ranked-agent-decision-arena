@@ -38,6 +38,24 @@ entries in a juror's ranking are deduplicated (no vote-stuffing); every run is
 recorded in `rada_memory/runs/*.json` — bids, votes, anonymization map, result,
 review.
 
+## Optional collaboration: `:sztab`
+
+For tasks that benefit from several perspectives but still need one accountable
+writer, prefix the terminal task with `:sztab`:
+
+```bash
+python3 rada.py --review ":sztab audit the offline game and run its tests"
+```
+
+RADA keeps the same anonymous bids and blind Borda vote, then assigns roles from
+the full ranking: the winner is the only lead with write permission; the runner-up
+is held back as the independent final reviewer; third place supplies a read-only
+test-strategy package; fourth supplies a read-only UX/red-team package. Advisory
+failures never block execution. The audit records the ranking, roles, packages,
+which package references the lead used, and a SHA-256 of the exact execution prompt.
+The deterministic verifier still has the final word. `:sztab` is currently a
+terminal feature; the browser UI continues to expose the established `:rada` flow.
+
 ## Requirements
 
 - Python 3.9+ (standard library only — nothing to install)
@@ -117,16 +135,27 @@ repo and review diffs. Full audit of every decision is kept locally.
 python3 ranking.py        # wins, review verdicts, juror accuracy per agent
 ```
 
+## Built by the arena: NEFARIN Core Defense
+
+[`game/index.html`](game/index.html) is a self-contained canvas game that runs
+offline from one HTML file. Its four stdlib tests check the artifact, canvas,
+inline script, and absence of external URLs. Provenance is intentionally explicit:
+a degraded live run with one available executor created the initial game; a later
+three-agent `:sztab` run assigned separate lead, test-advisor, and reviewer roles to
+audit and verify it. We do not claim the second run created the game from scratch.
+
 ## Tests
 
 ```bash
-python3 -m unittest test_rada -v     # 40 regression tests
+python3 -m unittest test_rada test_game -v     # 54 regression tests
 ```
 
 Covers: exit-code handling, config validation, Borda dedup, brace-safe JSON
 parsing, Borda-based reviewer selection, error-vs-PASS separation, one-shot
 `:debata`, unified audit schema, agent-failure isolation, deterministic verification,
 secret-safe subprocess execution, Windows portability.
+The suite also covers `:sztab` role isolation, malformed advisory packages,
+execution-prompt audit hashes, and the offline NEFARIN artifact contract.
 
 ## Windows
 

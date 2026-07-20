@@ -21,7 +21,8 @@ bez wyraźnej prośby użytkownika.
 - `web.py` — komunikator w przeglądarce (serwer HTTP ze stdlib); importuje `rada` i `pokoj`.
   Funkcja `process_rada` zawiera WZORCOWĄ logikę wyboru recenzenta wg Bordy (Zlecenie 1
   polega na przeniesieniu jej do `rada.py`).
-- `test_rada.py` — 40 testów regresyjnych po code review. Wszystkie muszą przechodzić.
+- `test_rada.py` — 50 testów rdzenia po code review; `test_game.py` — 4 testy
+  artefaktu NEFARIN. Wszystkie 54 testy muszą przechodzić.
 
 ## Twarde zasady (antydrift)
 
@@ -40,7 +41,7 @@ bez wyraźnej prośby użytkownika.
 ## Jak weryfikować pracę (definicja "zrobione")
 
 ```bash
-python3 -m unittest test_rada -v          # komplet zielony
+python3 -m unittest test_rada test_game -v  # komplet 54 testów zielony
 python3 rada.py --mock --review "test"    # pełny przebieg przetargu
 python3 pokoj.py --mock ":debata test"    # po Zleceniu 3: debata, nie panel
 python3 web.py --mock --no-open           # smoke: serwer wstaje bez wyjątków

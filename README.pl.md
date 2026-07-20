@@ -33,6 +33,24 @@ odpowiadają "tak". Gdy oceniają cudze plany w ciemno, robią to o wiele trzeź
 Głosy liczone są metodą Bordy (1. miejsce = najwięcej punktów), remis rozstrzyga
 deklarowana pewność.
 
+## Opcjonalna współpraca: `:sztab`
+
+Gdy zadanie potrzebuje kilku perspektyw, ale nadal jednego odpowiedzialnego
+wykonawcy, użyj prefiksu `:sztab` w terminalu:
+
+```bash
+python3 rada.py --review ":sztab przeprowadź audyt gry offline i uruchom jej testy"
+```
+
+Po anonimowych ofertach i głosowaniu Bordy zwycięzca zostaje jedynym liderem z
+prawem zapisu, wicemistrz pozostaje niezależnym recenzentem końcowym, trzecie
+miejsce przygotowuje pakiet strategii testów, a czwarte — pakiet UX/red-team.
+Doradcy korzystają wyłącznie z poleceń bez prawa zapisu, a ich awaria nie blokuje
+wykonania. Zapis audytowy zawiera ranking, role, pakiety, wykorzystane identyfikatory
+porad oraz SHA-256 dokładnego promptu lidera. Ostateczny status nadal ustala tylko
+deterministyczny verifier. `:sztab` jest obecnie funkcją terminalową; interfejs webowy
+zachowuje sprawdzony przepływ `:rada`.
+
 ## Wymagania
 
 - Python 3.9+ (sam standard library, zero zależności)
@@ -177,7 +195,7 @@ python3 web.py               # na żywych agentach (otwiera http://localhost:878
 ## Testy
 
 ```bash
-python3 -m unittest test_rada -v      # 40 testów regresyjnych
+python3 -m unittest test_rada test_game -v      # 54 testy regresyjne
 ```
 
 `test_rada.py` pilnuje czterech błędów wykrytych w code review v0 (każdy test najpierw
@@ -195,6 +213,18 @@ reprodukuje buga, potem potwierdza naprawę):
   już punktów;
 - **parser JSON** — klamry `{` `}` wewnątrz wartości stringowych nie psują wykrywania
   obiektu.
+- **tryb `:sztab`** — izolacja ról, awarie i błędne pakiety doradcze oraz hash
+  dokładnego promptu wykonawcy są sprawdzane regresyjnie;
+- **NEFARIN** — `test_game.py` sprawdza istnienie samodzielnej gry, canvas, skrypt
+  inline i brak zewnętrznych adresów URL.
+
+## Artefakt sztabu: NEFARIN Core Defense
+
+`game/index.html` to samodzielna gra canvas działająca offline z jednego pliku.
+Proweniencja jest opisana bez skrótów: pierwszy, zdegradowany przebieg z jednym
+dostępnym wykonawcą utworzył grę; późniejszy, trzyosobowy przebieg `:sztab`
+przydzielił osobno lidera, doradcę testowego i recenzenta, aby ją zaudytować i
+zweryfikować. Nie twierdzimy, że drugi przebieg zbudował grę od zera.
 
 ## Co naprawiono (v0.1, utwardzenie rdzenia)
 
