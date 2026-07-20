@@ -134,4 +134,4 @@ python3 -m unittest test_rada test_game -v
 ```
 
 **Repo:** https://github.com/baronq6-droid/rada-ranked-agent-decision-arena
-· **Video:** `[LINK DO YOUTUBE]`
+· **Video:** https://www.youtube.com/watch?v=YVQv31UsZos
