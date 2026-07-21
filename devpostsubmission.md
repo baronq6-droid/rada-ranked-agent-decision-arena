@@ -111,10 +111,17 @@ can't recognize them.
 
 ## What's next
 
-SQLite event store (ordering + metrics), live streaming of the winner's work,
-per-run token/cost accounting, ACP as a second transport, and a proper benchmark
-(success@1, regret, Brier-calibrated confidence) to prove RADA beats both
-random choice and "pick the most confident" — data first, then weighted voting.
+- **One-command operation.** You describe the goal once; Codex (GPT-5.6) acts
+  as the control room — launching RADA, monitoring every phase and collecting
+  the evidence.
+- **Benchmarks.** Score new cloud and local models as leads, reviewers and
+  advisors on repeatable golden tasks — reliability, latency and cost.
+- **Beyond code (next experiment).** The team that built NEFARIN designs its
+  trailer — controlled video variants through creative tools such as Dreamina
+  and Seedance, reviewed and verified like code.
+- **Product.** A visual panel for the 8S flow, with the JSON audit record as the
+  single source of truth. No AI model gets the final word — a deterministic
+  verifier does.
 
 ---
 
